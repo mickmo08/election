@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from ..auth import Principal, get_db, issue_dev_token, principal
+from ..auth import Principal, authenticate, get_db, issue_dev_token, principal
 from ..config import get_settings
 from ..models import Membership, Tenant, User
 
@@ -77,3 +77,15 @@ def me(p: Principal = Depends(principal), db: Session = Depends(get_db)) -> dict
         "tenants": [{"slug": s, "name": n, "role": r} for s, n, r in tenants],
         "environment": get_settings().environment,
     }
+
+
+@router.get("/api/v1/my-tenants")
+def my_tenants(auth: tuple[User, dict] = Depends(authenticate), db: Session = Depends(get_db)) -> dict:
+    """Organizations the signed-in user belongs to (used after SSO sign-in to choose a tenant)."""
+    user, _ = auth
+    rows = db.execute(
+        select(Tenant.slug, Tenant.name, Membership.role)
+        .join(Membership, Membership.tenant_id == Tenant.id)
+        .where(Membership.user_id == user.id, Tenant.status == "active")
+    ).all()
+    return {"tenants": [{"slug": s, "name": n, "role": r} for s, n, r in rows]}

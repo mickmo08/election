@@ -15,3 +15,6 @@ playwright-report/
 test-results/
 .terraform/
 *.tfstate*
+frontend/test-results/
+frontend/playwright-report/
+*.tsbuildinfo
