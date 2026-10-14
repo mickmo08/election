@@ -1,5 +1,8 @@
 """Forecast evaluation report: runs a gated forecast (which includes the time-respecting backtest)
-and writes JSON + Markdown evidence. Run: python -m evals.forecast_eval --country XS --office xs_assembly --cycle 2026"""
+and writes JSON + Markdown evidence.
+
+Run: python -m evals.forecast_eval --country XS --office xs_assembly --cycle 2026
+"""
 
 from __future__ import annotations
 
