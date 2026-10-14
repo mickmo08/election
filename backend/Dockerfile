@@ -8,7 +8,7 @@ RUN uv pip install --system --no-cache --target /deps .
 
 FROM python:3.13-slim
 ARG ELECTION_APP_VERSION=dev
-ENV ELECTION_APP_VERSION=${ELECTION_APP_VERSION} PYTHONPATH=/deps:/app PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+ENV ELECTION_APP_VERSION=${ELECTION_APP_VERSION} PATH=/deps/bin:$PATH PYTHONPATH=/deps:/app PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 RUN apt-get update && apt-get install -y --no-install-recommends postgresql-client && rm -rf /var/lib/apt/lists/* \
  && useradd --uid 10001 --create-home app
 COPY --from=build /deps /deps
