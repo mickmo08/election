@@ -1,0 +1,57 @@
+fips,usps,name,timezone,house_seats_2020,nonvoting_delegate,senate_classes
+01,AL,Alabama,America/Chicago,7,false,2|3
+02,AK,Alaska,America/Anchorage,1,false,2|3
+04,AZ,Arizona,America/Phoenix,9,false,1|3
+05,AR,Arkansas,America/Chicago,4,false,2|3
+06,CA,California,America/Los_Angeles,52,false,1|3
+08,CO,Colorado,America/Denver,8,false,2|3
+09,CT,Connecticut,America/New_York,5,false,1|3
+10,DE,Delaware,America/New_York,1,false,1|2
+11,DC,District of Columbia,America/New_York,0,true,
+12,FL,Florida,America/New_York,28,false,1|3
+13,GA,Georgia,America/New_York,14,false,2|3
+15,HI,Hawaii,Pacific/Honolulu,2,false,1|3
+16,ID,Idaho,America/Boise,2,false,2|3
+17,IL,Illinois,America/Chicago,17,false,2|3
+18,IN,Indiana,America/Indiana/Indianapolis,9,false,1|3
+19,IA,Iowa,America/Chicago,4,false,2|3
+20,KS,Kansas,America/Chicago,4,false,2|3
+21,KY,Kentucky,America/New_York,6,false,2|3
+22,LA,Louisiana,America/Chicago,6,false,2|3
+23,ME,Maine,America/New_York,2,false,1|2
+24,MD,Maryland,America/New_York,8,false,1|3
+25,MA,Massachusetts,America/New_York,9,false,1|2
+26,MI,Michigan,America/Detroit,13,false,1|2
+27,MN,Minnesota,America/Chicago,8,false,1|2
+28,MS,Mississippi,America/Chicago,4,false,1|2
+29,MO,Missouri,America/Chicago,8,false,1|3
+30,MT,Montana,America/Denver,2,false,1|2
+31,NE,Nebraska,America/Chicago,3,false,1|2
+32,NV,Nevada,America/Los_Angeles,4,false,1|3
+33,NH,New Hampshire,America/New_York,2,false,2|3
+34,NJ,New Jersey,America/New_York,12,false,1|2
+35,NM,New Mexico,America/Denver,3,false,1|2
+36,NY,New York,America/New_York,26,false,1|3
+37,NC,North Carolina,America/New_York,14,false,2|3
+38,ND,North Dakota,America/Chicago,1,false,1|3
+39,OH,Ohio,America/New_York,15,false,1|3
+40,OK,Oklahoma,America/Chicago,5,false,2|3
+41,OR,Oregon,America/Los_Angeles,6,false,2|3
+42,PA,Pennsylvania,America/New_York,17,false,1|3
+44,RI,Rhode Island,America/New_York,2,false,1|2
+45,SC,South Carolina,America/New_York,7,false,2|3
+46,SD,South Dakota,America/Chicago,1,false,2|3
+47,TN,Tennessee,America/Chicago,9,false,1|2
+48,TX,Texas,America/Chicago,38,false,1|2
+49,UT,Utah,America/Denver,4,false,1|3
+50,VT,Vermont,America/New_York,1,false,1|3
+51,VA,Virginia,America/New_York,11,false,1|2
+53,WA,Washington,America/Los_Angeles,10,false,1|3
+54,WV,West Virginia,America/New_York,2,false,1|2
+55,WI,Wisconsin,America/Chicago,8,false,1|3
+56,WY,Wyoming,America/Denver,1,false,1|2
+60,AS,American Samoa,Pacific/Pago_Pago,0,true,
+66,GU,Guam,Pacific/Guam,0,true,
+69,MP,Northern Mariana Islands,Pacific/Saipan,0,true,
+72,PR,Puerto Rico,America/Puerto_Rico,0,true,
+78,VI,U.S. Virgin Islands,America/St_Thomas,0,true,

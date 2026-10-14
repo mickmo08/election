@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+var/
+node_modules/
+.next/
+out/
+coverage/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+playwright-report/
+test-results/
+.terraform/
+*.tfstate*
