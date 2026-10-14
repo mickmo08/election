@@ -4,18 +4,18 @@ version = "0.1.0"
 description = "Election intelligence and public-opinion research platform (API + workers)"
 requires-python = ">=3.12"
 dependencies = [
-  "fastapi==0.115.6",
-  "uvicorn[standard]==0.34.0",
+  "fastapi==0.143.0",
+  "uvicorn[standard]==0.54.0",
   "sqlalchemy==2.0.36",
   "alembic==1.14.0",
   "psycopg[binary]==3.2.3",
-  "pydantic==2.10.4",
-  "pydantic-settings==2.7.1",
-  "pyjwt[crypto]==2.10.1",
+  "pydantic==2.14.1",
+  "pydantic-settings==2.15.0",
+  "pyjwt[crypto]==2.15.1",
   "httpx==0.28.1",
   "numpy==2.2.1",
   "prometheus-client==0.21.1",
-  "python-multipart==0.0.20",
+  "python-multipart==0.0.32",
   "boto3==1.35.90",
   "pyshp==2.3.1",
   "anthropic==1.13.0",
@@ -24,8 +24,8 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-  "pytest==8.3.4",
-  "pytest-cov==6.0.0",
+  "pytest==9.1.1",
+  "pytest-cov==7.1.0",
   "ruff==0.8.4",
   "mypy==1.14.1",
   "pip-audit==2.7.3",

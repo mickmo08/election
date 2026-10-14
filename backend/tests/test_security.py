@@ -85,7 +85,18 @@ def test_production_config_guards():
         Settings(environment="production", dev_auth_secret="x", oidc_issuer="i", oidc_audience="a", oidc_jwks_url="j")
     with pytest.raises(ValidationError):
         Settings(environment="production", dev_auth_secret=None)
-    ok = Settings(environment="production", dev_auth_secret=None, oidc_issuer="i", oidc_audience="a", oidc_jwks_url="j")
+    oidc = {"oidc_issuer": "i", "oidc_audience": "a", "oidc_jwks_url": "j"}
+    with pytest.raises(ValidationError):  # development database credentials are rejected
+        Settings(environment="production", dev_auth_secret=None, **oidc)
+    prod_urls = {
+        k: f"postgresql+psycopg://{r}:from-secret-manager@db.internal/election"
+        for k, r in (
+            ("database_url", "svc_app"),
+            ("worker_database_url", "svc_worker"),
+            ("migration_database_url", "svc_owner"),
+        )
+    }
+    ok = Settings(environment="production", dev_auth_secret=None, **oidc, **prod_urls)
     assert not ok.allows_synthetic_data
 
 
@@ -204,7 +215,8 @@ def test_app_role_cannot_tamper_with_history(tenants):
 
 def test_survey_rows_never_exposed(client, headers):
     a = headers("demo-analyst")
-    paths = [r.path for r in client.app.routes]
+    paths = list(client.app.openapi()["paths"])
+    assert any("surveys" in p for p in paths)
     assert not any("responses" in p for p in paths)
     sid = client.get("/api/v1/surveys", headers=a).json()["datasets"][0]["id"]
     body = client.get(f"/api/v1/surveys/{sid}/crosstab?row=q_vote&col=age_band", headers=a).json()

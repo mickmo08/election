@@ -75,6 +75,9 @@ class Settings(BaseSettings):
                 raise ValueError("ELECTION_DEV_AUTH_SECRET must not be set in staging/production")
             if not (self.oidc_issuer and self.oidc_audience and self.oidc_jwks_url):
                 raise ValueError("OIDC issuer, audience and JWKS URL are required in staging/production")
+            for url in (self.database_url, self.worker_database_url, self.migration_database_url):
+                if any(f"{u}:{u}@" in url for u in ("election", "election_app", "election_worker")):
+                    raise ValueError("development database credentials must not be used in staging/production")
         return self
 
     @property

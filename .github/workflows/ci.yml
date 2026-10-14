@@ -1,0 +1,120 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env: { POSTGRES_USER: election, POSTGRES_PASSWORD: election, POSTGRES_DB: election }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U election" --health-interval 5s --health-retries 20
+    defaults: { run: { working-directory: backend } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+        with: { version: "0.5.11" }
+      - run: uv venv -p 3.13 && uv pip install -e '.[dev]'
+      - name: Lint and format
+        run: .venv/bin/ruff check app tests migrations && .venv/bin/ruff format --check app tests migrations
+      - name: Bootstrap database roles
+        env: { PGPASSWORD: election }
+        run: |
+          psql -h localhost -U election -v app_pw=election_app -v worker_pw=election_worker -f ../ops/db/bootstrap_roles.sql election
+          psql -h localhost -U election -c "CREATE DATABASE election_test OWNER election" election
+      - name: Migration round trip (upgrade -> downgrade -> upgrade)
+        env: { ELECTION_MIGRATION_DATABASE_URL: "postgresql+psycopg://election:election@localhost/election" }
+        run: .venv/bin/alembic upgrade head && .venv/bin/alembic downgrade base && .venv/bin/alembic upgrade head
+      - name: Unit, integration and authorization tests
+        run: .venv/bin/pytest -q --cov=app --cov-report=xml --cov-fail-under=80
+      - name: Dependency vulnerability audit
+        run: .venv/bin/pip-audit --skip-editable --strict
+      - name: Assistant evaluation (offline provider)
+        run: .venv/bin/python -m evals.assistant_eval --out ../docs/evidence/assistant-eval-ci.json
+
+  frontend:
+    runs-on: ubuntu-24.04
+    defaults: { run: { working-directory: frontend } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: frontend/package-lock.json }
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm audit --omit=dev --audit-level=high
+
+  e2e:
+    needs: [backend, frontend]
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env: { POSTGRES_USER: election, POSTGRES_PASSWORD: election, POSTGRES_DB: election }
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U election" --health-interval 5s --health-retries 20
+    env:
+      ELECTION_ENVIRONMENT: development
+      ELECTION_DEV_AUTH_SECRET: ci-only-secret-0123456789abcdef0123456789
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+        with: { version: "0.5.11" }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Start backend with demo data
+        working-directory: backend
+        env: { PGPASSWORD: election }
+        run: |
+          uv venv -p 3.13 && uv pip install -e .
+          psql -h localhost -U election -v app_pw=election_app -v worker_pw=election_worker -f ../ops/db/bootstrap_roles.sql election
+          .venv/bin/alembic upgrade head && .venv/bin/python -m app.cli seed-demo
+          nohup .venv/bin/uvicorn app.main:app --port 8000 > api.log 2>&1 &
+      - name: Build and start frontend
+        working-directory: frontend
+        run: npm ci && npm run build && (nohup npm start > web.log 2>&1 &) && npx wait-on -t 60000 http://localhost:3000/login
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: npx playwright test
+        working-directory: frontend
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with: { name: playwright-report, path: frontend/playwright-report }
+
+  security:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Secret scanning
+        uses: gitleaks/gitleaks-action@v2
+        env: { GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+      - name: IaC scan
+        uses: bridgecrewio/checkov-action@v12
+        with: { directory: infra/terraform, framework: terraform, soft_fail: false, config_file: infra/terraform/.checkov.yaml }
+
+  terraform:
+    runs-on: ubuntu-24.04
+    defaults: { run: { working-directory: infra/terraform } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with: { terraform_version: 1.9.8 }
+      - run: terraform fmt -check -recursive
+      - run: terraform init -backend=false && terraform validate
+
+  images:
+    needs: [backend, frontend]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build --build-arg ELECTION_APP_VERSION=${{ github.sha }} -t election-api:${{ github.sha }} backend
+      - run: docker build -t election-web:${{ github.sha }} frontend

@@ -1,0 +1,14 @@
+title = "election platform gitleaks config"
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Documented local-development and test-only values (rejected at runtime in staging/production)"
+paths = [
+  '''backend/tests/.*''',
+  '''docker-compose\.yml''',
+  '''backend/\.env\.example''',
+]
+regexes = [
+  '''postgresql\+psycopg://election(_app|_worker)?:election(_app|_worker)?@''',
+]

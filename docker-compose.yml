@@ -1,0 +1,51 @@
+# Local development stack. Not used in production (see infra/terraform).
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: election
+      POSTGRES_PASSWORD: election
+      POSTGRES_DB: election
+    ports: ["5432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data", "./ops/db/bootstrap_roles.sql:/bootstrap_roles.sql:ro"]
+    healthcheck: { test: ["CMD", "pg_isready", "-U", "election"], interval: 5s, retries: 20 }
+  bootstrap:
+    image: postgis/postgis:16-3.4
+    depends_on: { db: { condition: service_healthy } }
+    entrypoint: ["psql", "postgresql://election:election@db/election", "-v", "app_pw=election_app", "-v", "worker_pw=election_worker", "-f", "/bootstrap_roles.sql"]
+    volumes: ["./ops/db/bootstrap_roles.sql:/bootstrap_roles.sql:ro"]
+  migrate:
+    build: ./backend
+    depends_on: { bootstrap: { condition: service_completed_successfully } }
+    environment: &env
+      ELECTION_ENVIRONMENT: development
+      ELECTION_DATABASE_URL: postgresql+psycopg://election_app:election_app@db/election
+      ELECTION_WORKER_DATABASE_URL: postgresql+psycopg://election_worker:election_worker@db/election
+      ELECTION_MIGRATION_DATABASE_URL: postgresql+psycopg://election:election@db/election
+      ELECTION_DEV_AUTH_SECRET: local-dev-only-secret-0123456789abcdef
+      ELECTION_STORAGE_LOCAL_PATH: /data/raw
+    command: ["sh", "-c", "alembic upgrade head && python -m app.cli seed-demo"]
+    volumes: ["raw:/data/raw"]
+  api:
+    build: ./backend
+    depends_on: { migrate: { condition: service_completed_successfully } }
+    environment: *env
+    ports: ["8000:8000"]
+    volumes: ["raw:/data/raw"]
+  worker:
+    build: ./backend
+    depends_on: { migrate: { condition: service_completed_successfully } }
+    environment: *env
+    command: ["python", "-m", "app.cli", "worker"]
+    volumes: ["raw:/data/raw"]
+  scheduler:
+    build: ./backend
+    depends_on: { migrate: { condition: service_completed_successfully } }
+    environment: *env
+    command: ["sh", "-c", "while true; do python -m app.cli schedule; sleep 300; done"]
+  web:
+    build: ./frontend
+    environment: { ELECTION_API_ORIGIN: "http://api:8000" }
+    depends_on: [api]
+    ports: ["3000:3000"]
+volumes: { pgdata: {}, raw: {} }
