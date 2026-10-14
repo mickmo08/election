@@ -24,9 +24,13 @@ app = FastAPI(
     openapi_url="/api/openapi.json" if settings.environment != "production" else None,
 )
 app.add_middleware(RequestContextMiddleware)
-app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins, allow_credentials=False,
-                   allow_methods=["GET", "POST", "PATCH", "DELETE"], allow_headers=["authorization", "x-tenant",
-                                                                                   "content-type", "x-request-id"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PATCH", "DELETE"],
+    allow_headers=["authorization", "x-tenant", "content-type", "x-request-id"],
+)
 
 
 @app.middleware("http")
@@ -43,8 +47,10 @@ async def security_headers(request: Request, call_next):  # type: ignore[no-unty
 
 @app.exception_handler(RequestValidationError)
 async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
-    return JSONResponse({"detail": "invalid request", "errors": [
-        {"loc": e["loc"], "msg": e["msg"]} for e in exc.errors()]}, status_code=422)
+    return JSONResponse(
+        {"detail": "invalid request", "errors": [{"loc": e["loc"], "msg": e["msg"]} for e in exc.errors()]},
+        status_code=422,
+    )
 
 
 @app.exception_handler(Exception)

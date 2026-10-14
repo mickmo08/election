@@ -98,7 +98,8 @@ class SourceAdapter(ABC):
 
     def fetch(self, source: Source, params: dict) -> list[FetchedFile]:
         raise SourceUnavailable(
-            f"{source.key} has no automated fetch; upload the file manually. {source.remediation}".strip())
+            f"{source.key} has no automated fetch; upload the file manually. {source.remediation}".strip()
+        )
 
     @abstractmethod
     def process(self, ctx: RunContext, files: list[FetchedFile]) -> None:
@@ -114,23 +115,42 @@ def register(adapter: SourceAdapter) -> SourceAdapter:
 
 
 def _idempotency_key(source_key: str, adapter: SourceAdapter, params: dict, hashes: list[str]) -> str:
-    material = json.dumps([source_key, adapter.key, adapter.version, params, sorted(hashes)], sort_keys=True,
-                          default=str)
+    material = json.dumps(
+        [source_key, adapter.key, adapter.version, params, sorted(hashes)], sort_keys=True, default=str
+    )
     return hashlib.sha256(material.encode()).hexdigest()
 
 
 def store_raw(db: Session, store: RawStore, source: Source, f: FetchedFile, schema_version: str) -> RawFile:
     key, digest = store.put(f.content, source_key=source.key)
-    db.execute(insert(RawFile).values(
-        id=uuid.uuid4(), source_id=source.id, url=f.url, publisher=source.publisher, retrieved_at=f.retrieved_at,
-        sha256=digest, size_bytes=len(f.content), content_type=f.content_type, storage_key=key,
-        schema_version=schema_version, http_metadata=f.http_metadata | ({"filename": f.filename} if f.filename else {}),
-    ).on_conflict_do_nothing(index_elements=["source_id", "sha256"]))
+    db.execute(
+        insert(RawFile)
+        .values(
+            id=uuid.uuid4(),
+            source_id=source.id,
+            url=f.url,
+            publisher=source.publisher,
+            retrieved_at=f.retrieved_at,
+            sha256=digest,
+            size_bytes=len(f.content),
+            content_type=f.content_type,
+            storage_key=key,
+            schema_version=schema_version,
+            http_metadata=f.http_metadata | ({"filename": f.filename} if f.filename else {}),
+        )
+        .on_conflict_do_nothing(index_elements=["source_id", "sha256"])
+    )
     return db.scalar(select(RawFile).where(RawFile.source_id == source.id, RawFile.sha256 == digest))
 
 
-def run_ingestion(db: Session, source_key: str, params: dict | None = None, files: list[FetchedFile] | None = None,
-                  triggered_by: str = "system", store: RawStore | None = None) -> IngestionRun:
+def run_ingestion(
+    db: Session,
+    source_key: str,
+    params: dict | None = None,
+    files: list[FetchedFile] | None = None,
+    triggered_by: str = "system",
+    store: RawStore | None = None,
+) -> IngestionRun:
     params = params or {}
     source = db.scalar(select(Source).where(Source.key == source_key))
     if source is None:
@@ -145,10 +165,18 @@ def run_ingestion(db: Session, source_key: str, params: dict | None = None, file
 
     if files is None:
         if source.status not in ("active",):
-            run = IngestionRun(source_id=source.id, adapter_key=adapter.key, adapter_version=adapter.version,
-                               params=params, idempotency_key="unavailable:" + uuid.uuid4().hex, status="failed",
-                               error=f"source status is {source.status}: {source.status_reason}",
-                               started_at=now, finished_at=now, triggered_by=triggered_by)
+            run = IngestionRun(
+                source_id=source.id,
+                adapter_key=adapter.key,
+                adapter_version=adapter.version,
+                params=params,
+                idempotency_key="unavailable:" + uuid.uuid4().hex,
+                status="failed",
+                error=f"source status is {source.status}: {source.status_reason}",
+                started_at=now,
+                finished_at=now,
+                triggered_by=triggered_by,
+            )
             db.add(run)
             db.commit()
             INGESTION_RUNS.labels(source.key, "failed").inc()
@@ -161,16 +189,27 @@ def run_ingestion(db: Session, source_key: str, params: dict | None = None, file
         rf = store_raw(db, store, source, f, adapter.schema_version)
         raw[rf.sha256] = rf
     idem = _idempotency_key(source.key, adapter, params, list(raw))
-    previous = db.scalar(select(IngestionRun).where(
-        IngestionRun.idempotency_key == idem, IngestionRun.status.in_(["succeeded", "partial"])))
+    previous = db.scalar(
+        select(IngestionRun).where(
+            IngestionRun.idempotency_key == idem, IngestionRun.status.in_(["succeeded", "partial"])
+        )
+    )
     if previous is not None:
         db.commit()
         log(logger, logging.INFO, "ingestion skipped (idempotent)", source=source.key, run_id=str(previous.id))
         return previous
 
-    run = IngestionRun(source_id=source.id, adapter_key=adapter.key, adapter_version=adapter.version, params=params,
-                       idempotency_key=idem, raw_file_ids=[str(r.id) for r in raw.values()], status="running",
-                       started_at=now, triggered_by=triggered_by)
+    run = IngestionRun(
+        source_id=source.id,
+        adapter_key=adapter.key,
+        adapter_version=adapter.version,
+        params=params,
+        idempotency_key=idem,
+        raw_file_ids=[str(r.id) for r in raw.values()],
+        status="running",
+        started_at=now,
+        triggered_by=triggered_by,
+    )
     db.add(run)
     db.commit()  # the run is visible to operators while processing
 
@@ -194,16 +233,33 @@ def run_ingestion(db: Session, source_key: str, params: dict | None = None, file
         raise
     first_raw = next(iter(raw.values()), None)
     for issue in ctx.issues:
-        db.add(QuarantineItem(
-            run_id=run.id, source_id=source.id, raw_file_id=first_raw.id if first_raw else None,
-            record_ref=issue.record_ref, rule=issue.rule, severity=issue.severity, message=issue.message,
-            suggested_action=issue.suggested_action, payload=issue.payload,
-            status="open" if issue.severity == "error" else "accepted"))
+        db.add(
+            QuarantineItem(
+                run_id=run.id,
+                source_id=source.id,
+                raw_file_id=first_raw.id if first_raw else None,
+                record_ref=issue.record_ref,
+                rule=issue.rule,
+                severity=issue.severity,
+                message=issue.message,
+                suggested_action=issue.suggested_action,
+                payload=issue.payload,
+                status="open" if issue.severity == "error" else "accepted",
+            )
+        )
     run.stats, run.checks, run.finished_at = ctx.stats, ctx.checks, datetime.now(UTC)
     if run.status in ("succeeded", "partial"):
         source.last_success_at = run.finished_at
     db.commit()
     INGESTION_RUNS.labels(source.key, run.status).inc()
-    log(logger, logging.INFO, "ingestion finished", source=source.key, run_id=str(run.id), status=run.status,
-        stats=ctx.stats, issues=len(ctx.issues))
+    log(
+        logger,
+        logging.INFO,
+        "ingestion finished",
+        source=source.key,
+        run_id=str(run.id),
+        status=run.status,
+        stats=ctx.stats,
+        issues=len(ctx.issues),
+    )
     return run

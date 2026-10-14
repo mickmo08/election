@@ -43,5 +43,8 @@ def client_key(request: Request) -> str:
 def enforce(bucket: TokenBucket, key: str) -> None:
     ok, retry = bucket.allow(key)
     if not ok:
-        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "rate limit exceeded",
-                            headers={"Retry-After": str(max(1, int(retry + 0.5)))})
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            "rate limit exceeded",
+            headers={"Retry-After": str(max(1, int(retry + 0.5)))},
+        )

@@ -12,8 +12,12 @@ from datetime import date, timedelta
 from .base import AdminUnitSpec, CalendarEntry, CountryAdapter, ElectoralSystemSpec, OfficeSpec, PartySpec, SourceSpec
 
 REGIONS = [
-    ("01", "Northmarch", "NM", 8), ("02", "Eastvale", "EV", 7), ("03", "Southreach", "SR", 6),
-    ("04", "Westholm", "WH", 7), ("05", "Centralia", "CE", 9), ("06", "Islemoor", "IM", 3),
+    ("01", "Northmarch", "NM", 8),
+    ("02", "Eastvale", "EV", 7),
+    ("03", "Southreach", "SR", 6),
+    ("04", "Westholm", "WH", 7),
+    ("05", "Centralia", "CE", 9),
+    ("06", "Islemoor", "IM", 3),
 ]
 
 
@@ -29,8 +33,13 @@ class SyntheticAdapter(CountryAdapter):
     default_timezone = "UTC"
     languages = ("en", "es")
     is_synthetic = True
-    result_status_map = {"preliminary": "preliminary", "unofficial": "unofficial", "certified": "certified",
-                         "corrected": "corrected", "recount": "recount"}
+    result_status_map = {
+        "preliminary": "preliminary",
+        "unofficial": "unofficial",
+        "certified": "certified",
+        "corrected": "corrected",
+        "recount": "recount",
+    }
 
     def admin_levels(self) -> list[tuple[int, str]]:
         return [(0, "Federation"), (1, "Region")]
@@ -43,8 +52,12 @@ class SyntheticAdapter(CountryAdapter):
     def electoral_systems(self) -> list[ElectoralSystemSpec]:
         return [
             ElectoralSystemSpec("fptp", "First past the post", "plurality"),
-            ElectoralSystemSpec("list_pr_dhondt", "List PR (D'Hondt)", "proportional",
-                                "Closed party lists, seats allocated by D'Hondt within each region."),
+            ElectoralSystemSpec(
+                "list_pr_dhondt",
+                "List PR (D'Hondt)",
+                "proportional",
+                "Closed party lists, seats allocated by D'Hondt within each region.",
+            ),
             ElectoralSystemSpec("two_round_majority", "Two-round majority", "majority"),
         ]
 
@@ -71,13 +84,31 @@ class SyntheticAdapter(CountryAdapter):
         return {"poll_publication_blackout_days": 2}
 
     def sources(self) -> list[SourceSpec]:
-        return [SourceSpec(
-            key="xs-synthetic", name="Synthetic demo generator (fictional data)", publisher="Platform (synthetic)",
-            owner_team="Platform", homepage_url="https://example.invalid/synthetic", access_method="synthetic_fixture",
-            access_details="Deterministic generator app.ingestion.adapters.synthetic (seeded).",
-            access_terms="Demo/test only.", license="Synthetic", license_url=None, permits_redistribution=True,
-            permits_text_analysis=True, refresh_schedule="manual", freshness_sla_hours=None,
-            coverage={"countries": ["XS"]}, reliability_notes="SYNTHETIC. Not real data. Never use for analysis.",
-            data_kind="synthetic", adapter_key="synthetic_xs", required_credentials=(), default_status="active",
-            status_reason="", remediation="", verification="n/a", is_synthetic=True,
-        )]
+        return [
+            SourceSpec(
+                key="xs-synthetic",
+                name="Synthetic demo generator (fictional data)",
+                publisher="Platform (synthetic)",
+                owner_team="Platform",
+                homepage_url="https://example.invalid/synthetic",
+                access_method="synthetic_fixture",
+                access_details="Deterministic generator app.ingestion.adapters.synthetic (seeded).",
+                access_terms="Demo/test only.",
+                license="Synthetic",
+                license_url=None,
+                permits_redistribution=True,
+                permits_text_analysis=True,
+                refresh_schedule="manual",
+                freshness_sla_hours=None,
+                coverage={"countries": ["XS"]},
+                reliability_notes="SYNTHETIC. Not real data. Never use for analysis.",
+                data_kind="synthetic",
+                adapter_key="synthetic_xs",
+                required_credentials=(),
+                default_status="active",
+                status_reason="",
+                remediation="",
+                verification="n/a",
+                is_synthetic=True,
+            )
+        ]

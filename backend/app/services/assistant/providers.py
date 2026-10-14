@@ -46,9 +46,18 @@ def tool_schemas(specs: dict) -> list[dict]:
             props[p] = {"type": type_map[t.rstrip("?")]}
             if not t.endswith("?"):
                 required.append(p)
-        out.append({"name": name, "description": spec["description"],
-                    "input_schema": {"type": "object", "properties": props, "required": required,
-                                     "additionalProperties": False}})
+        out.append(
+            {
+                "name": name,
+                "description": spec["description"],
+                "input_schema": {
+                    "type": "object",
+                    "properties": props,
+                    "required": required,
+                    "additionalProperties": False,
+                },
+            }
+        )
     return out
 
 
@@ -76,9 +85,16 @@ class AnthropicProvider:
                 raise ProviderError("assistant time budget exhausted")
             try:
                 resp = self.client.beta.messages.create(
-                    model=self.model, max_tokens=s.llm_max_output_tokens, system=system, messages=messages,
-                    tools=tools, tool_choice={"type": "auto"}, output_config={"effort": "medium"},
-                    betas=["server-side-fallback-2026-07-01"], fallbacks="default")
+                    model=self.model,
+                    max_tokens=s.llm_max_output_tokens,
+                    system=system,
+                    messages=messages,
+                    tools=tools,
+                    tool_choice={"type": "auto"},
+                    output_config={"effort": "medium"},
+                    betas=["server-side-fallback-2026-07-01"],
+                    fallbacks="default",
+                )
             except self._anthropic.APIStatusError as exc:
                 raise ProviderError(f"Anthropic API error {exc.status_code}") from exc
             except self._anthropic.APIConnectionError as exc:
@@ -98,8 +114,14 @@ class AnthropicProvider:
             results = []
             for b in uses:
                 if len(res.tool_calls) >= max_calls:
-                    results.append({"type": "tool_result", "tool_use_id": b.id, "is_error": True,
-                                    "content": "tool call budget exhausted; answer with the evidence you have"})
+                    results.append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": b.id,
+                            "is_error": True,
+                            "content": "tool call budget exhausted; answer with the evidence you have",
+                        }
+                    )
                     continue
                 out = executor(b.name, dict(b.input))
                 res.tool_calls.append({"name": b.name, "args": dict(b.input)})
@@ -121,17 +143,29 @@ class OpenAICompatibleProvider:
 
     def run(self, system: str, question: str, specs: dict, executor: Executor, max_calls: int) -> ProviderResult:
         s = get_settings()
-        tools = [{"type": "function", "function": {"name": t["name"], "description": t["description"],
-                                                   "parameters": t["input_schema"]}} for t in tool_schemas(specs)]
+        tools = [
+            {
+                "type": "function",
+                "function": {"name": t["name"], "description": t["description"], "parameters": t["input_schema"]},
+            }
+            for t in tool_schemas(specs)
+        ]
         messages: list[dict] = [{"role": "system", "content": system}, {"role": "user", "content": question}]
         res = ProviderResult("", self.name, self.model)
         headers = {"authorization": f"Bearer {self.key}"} if self.key else {}
         with httpx.Client(timeout=s.llm_timeout_seconds) as client:
             for _ in range(max_calls + 1):
                 try:
-                    r = client.post(self.url, headers=headers, json={
-                        "model": self.model, "messages": messages, "tools": tools,
-                        "max_tokens": s.llm_max_output_tokens})
+                    r = client.post(
+                        self.url,
+                        headers=headers,
+                        json={
+                            "model": self.model,
+                            "messages": messages,
+                            "tools": tools,
+                            "max_tokens": s.llm_max_output_tokens,
+                        },
+                    )
                     r.raise_for_status()
                 except httpx.HTTPError as exc:
                     raise ProviderError(f"provider request failed: {type(exc).__name__}") from exc

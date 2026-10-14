@@ -26,16 +26,32 @@ def handler(kind: str):  # type: ignore[no-untyped-def]
     def deco(fn):  # type: ignore[no-untyped-def]
         HANDLERS[kind] = fn
         return fn
+
     return deco
 
 
-def enqueue(db: Session, kind: str, payload: dict, *, idempotency_key: str | None = None,
-            queue: str = "default", max_attempts: int = 5, run_at: datetime | None = None,
-            tenant_id: uuid.UUID | None = None) -> uuid.UUID | None:
+def enqueue(
+    db: Session,
+    kind: str,
+    payload: dict,
+    *,
+    idempotency_key: str | None = None,
+    queue: str = "default",
+    max_attempts: int = 5,
+    run_at: datetime | None = None,
+    tenant_id: uuid.UUID | None = None,
+) -> uuid.UUID | None:
     """Insert a job. With an idempotency key, a duplicate enqueue is a no-op returning the existing id."""
     stmt = insert(Job).values(
-        id=uuid.uuid4(), queue=queue, kind=kind, payload=payload, idempotency_key=idempotency_key,
-        status="queued", attempts=0, max_attempts=max_attempts, run_at=run_at or datetime.now(UTC),
+        id=uuid.uuid4(),
+        queue=queue,
+        kind=kind,
+        payload=payload,
+        idempotency_key=idempotency_key,
+        status="queued",
+        attempts=0,
+        max_attempts=max_attempts,
+        run_at=run_at or datetime.now(UTC),
         tenant_id=tenant_id,
     )
     if idempotency_key:
@@ -53,12 +69,16 @@ def backoff(attempt: int) -> timedelta:
 def claim(db: Session, queue: str = "default") -> Job | None:
     now = datetime.now(UTC)
     job = db.scalar(
-        select(Job).where(
+        select(Job)
+        .where(
             Job.queue == queue,
             ((Job.status.in_(["queued", "failed"])) & (Job.run_at <= now))
             # Recover jobs whose worker died mid-run (lease expired).
             | ((Job.status == "running") & (Job.heartbeat_at < now - LEASE)),
-        ).order_by(Job.run_at).limit(1).with_for_update(skip_locked=True)
+        )
+        .order_by(Job.run_at)
+        .limit(1)
+        .with_for_update(skip_locked=True)
     )
     if job is None:
         return None
@@ -78,8 +98,11 @@ def run_one(db: Session, queue: str = "default") -> bool:
             raise LookupError(f"no handler registered for job kind {job.kind!r}")
         result = fn(db, job.payload)
         db.commit()
-        db.execute(update(Job).where(Job.id == job.id).values(
-            status="succeeded", result=result or {}, finished_at=datetime.now(UTC), last_error=None))
+        db.execute(
+            update(Job)
+            .where(Job.id == job.id)
+            .values(status="succeeded", result=result or {}, finished_at=datetime.now(UTC), last_error=None)
+        )
         db.commit()
         JOBS_PROCESSED.labels(job.kind, "succeeded").inc()
         log(logger, logging.INFO, "job succeeded", job_id=str(job.id), kind=job.kind, attempts=job.attempts)
@@ -87,21 +110,39 @@ def run_one(db: Session, queue: str = "default") -> bool:
         db.rollback()
         dead = job.attempts >= job.max_attempts
         err = f"{type(exc).__name__}: {exc}\n{traceback.format_exc(limit=5)}"[:8000]
-        db.execute(update(Job).where(Job.id == job.id).values(
-            status="dead" if dead else "failed", last_error=err,
-            run_at=datetime.now(UTC) + backoff(job.attempts),
-            finished_at=datetime.now(UTC) if dead else None))
+        db.execute(
+            update(Job)
+            .where(Job.id == job.id)
+            .values(
+                status="dead" if dead else "failed",
+                last_error=err,
+                run_at=datetime.now(UTC) + backoff(job.attempts),
+                finished_at=datetime.now(UTC) if dead else None,
+            )
+        )
         db.commit()
         JOBS_PROCESSED.labels(job.kind, "dead" if dead else "failed").inc()
-        log(logger, logging.ERROR if dead else logging.WARNING, "job failed", job_id=str(job.id),
-            kind=job.kind, attempts=job.attempts, dead=dead, error=str(exc))
+        log(
+            logger,
+            logging.ERROR if dead else logging.WARNING,
+            "job failed",
+            job_id=str(job.id),
+            kind=job.kind,
+            attempts=job.attempts,
+            dead=dead,
+            error=str(exc),
+        )
     return True
 
 
 def requeue_dead(db: Session, job_id: uuid.UUID, reset_attempts: bool = True) -> bool:
-    res = db.execute(update(Job).where(Job.id == job_id, Job.status == "dead").values(
-        status="queued", run_at=datetime.now(UTC), attempts=0 if reset_attempts else Job.attempts,
-        finished_at=None))
+    res = db.execute(
+        update(Job)
+        .where(Job.id == job_id, Job.status == "dead")
+        .values(
+            status="queued", run_at=datetime.now(UTC), attempts=0 if reset_attempts else Job.attempts, finished_at=None
+        )
+    )
     return res.rowcount == 1  # type: ignore[attr-defined]
 
 

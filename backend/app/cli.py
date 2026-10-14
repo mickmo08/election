@@ -39,8 +39,14 @@ def cmd_ingest(args: argparse.Namespace) -> None:
     files = None
     if args.file:
         p = Path(args.file)
-        files = [FetchedFile(url=args.url or f"upload://{p.name}", content=p.read_bytes(),
-                             content_type="application/octet-stream", filename=p.name)]
+        files = [
+            FetchedFile(
+                url=args.url or f"upload://{p.name}",
+                content=p.read_bytes(),
+                content_type="application/octet-stream",
+                filename=p.name,
+            )
+        ]
     from .db import worker_session  # noqa: PLC0415
 
     with worker_session() as db:
@@ -67,16 +73,20 @@ def cmd_seed_demo(args: argparse.Namespace) -> None:
         run = run_ingestion(db, "xs-synthetic", {"seed": 7}, triggered_by="seed-demo")
         print("synthetic run:", run.status, run.stats)
         classify_documents(db)
-        for slug, name, plan in (("demo-newsroom", "Demo Newsroom (synthetic)", "newsroom"),
-                                 ("demo-university", "Demo University Lab (synthetic)", "research")):
+        for slug, name, plan in (
+            ("demo-newsroom", "Demo Newsroom (synthetic)", "newsroom"),
+            ("demo-university", "Demo University Lab (synthetic)", "research"),
+        ):
             if db.scalar(select(Tenant).where(Tenant.slug == slug)) is None:
                 db.add(Tenant(id=uuid.uuid4(), slug=slug, name=name, plan_key=plan))
         db.flush()
-        users = [("demo-admin", "admin@demo.invalid", "demo-newsroom", "admin", True),
-                 ("demo-analyst", "analyst@demo.invalid", "demo-newsroom", "analyst", False),
-                 ("demo-reviewer", "reviewer@demo.invalid", "demo-newsroom", "reviewer", False),
-                 ("demo-viewer", "viewer@demo.invalid", "demo-newsroom", "viewer", False),
-                 ("uni-analyst", "analyst@uni.invalid", "demo-university", "analyst", False)]
+        users = [
+            ("demo-admin", "admin@demo.invalid", "demo-newsroom", "admin", True),
+            ("demo-analyst", "analyst@demo.invalid", "demo-newsroom", "analyst", False),
+            ("demo-reviewer", "reviewer@demo.invalid", "demo-newsroom", "reviewer", False),
+            ("demo-viewer", "viewer@demo.invalid", "demo-newsroom", "viewer", False),
+            ("uni-analyst", "analyst@uni.invalid", "demo-university", "analyst", False),
+        ]
         for sub, email, slug, role, op in users:
             u = db.scalar(select(User).where(User.issuer == "election-dev", User.subject == sub))
             if u is None:

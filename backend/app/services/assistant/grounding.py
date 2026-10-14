@@ -53,5 +53,9 @@ def check(answer: str, evidence: list[dict], extra_allowed: list[float] | None =
                 unsupported.append(raw)
         if material and not cites:
             uncited.append(sent.strip()[:200])
-    return {"passed": not (unsupported or uncited or unknown), "unsupported_numbers": unsupported,
-            "uncited_sentences": uncited, "unknown_citations": sorted(set(unknown))}
+    return {
+        "passed": not (unsupported or uncited or unknown),
+        "unsupported_numbers": unsupported,
+        "uncited_sentences": uncited,
+        "unknown_citations": sorted(set(unknown)),
+    }

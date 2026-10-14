@@ -94,8 +94,11 @@ def predict(model: Fitted, ci: CycleInputs) -> list[Prediction]:
         f = features(r, ci.env_poll, ci.env_prev_actual)
         sd_d = model.sigma_district
         if f is None:
-            mean = model.fallback_mean + ((ci.env_poll - ci.env_prev_actual) if ci.env_poll is not None and
-                                          ci.env_prev_actual is not None else 0.0)
+            mean = model.fallback_mean + (
+                (ci.env_poll - ci.env_prev_actual)
+                if ci.env_poll is not None and ci.env_prev_actual is not None
+                else 0.0
+            )
             sd_d *= FALLBACK_INFLATION
             flags.append("no_comparable_prior_result")
         else:
@@ -105,7 +108,7 @@ def predict(model: Fitted, ci: CycleInputs) -> list[Prediction]:
                 flags.append(f"prior_via_crosswalk_{r.prev_overlap:.0%}")
         if ci.env_poll is None:
             flags.append("no_polls_national_uncertainty_inflated")
-        sd = math.sqrt(model.sigma_national ** 2 * (1.5 if ci.env_poll is None else 1.0) + sd_d ** 2)
+        sd = math.sqrt(model.sigma_national**2 * (1.5 if ci.env_poll is None else 1.0) + sd_d**2)
         if not r.has_a and not r.has_b:
             p, flags = 0.5, [*flags, "no_major_party_candidates"]
         elif not r.has_b:
@@ -123,7 +126,7 @@ def baseline_persistence(model: Fitted, ci: CycleInputs) -> list[Prediction]:
     out = []
     for r in ci.rows:
         mean = r.prev_margin if r.prev_margin is not None else model.fallback_mean
-        sd = math.sqrt(model.sigma_national ** 2 + model.sigma_district ** 2) * 1.25
+        sd = math.sqrt(model.sigma_national**2 + model.sigma_district**2) * 1.25
         out.append(Prediction(str(r.contest_id), r.district_code, mean, sd, norm_cdf(mean / sd)))
     return out
 
@@ -133,20 +136,21 @@ def baseline_uniform_swing(model: Fitted, ci: CycleInputs) -> list[Prediction]:
     out = []
     for r in ci.rows:
         mean = (r.prev_margin if r.prev_margin is not None else model.fallback_mean) + swing
-        sd = math.sqrt(model.sigma_national ** 2 + model.sigma_district ** 2) * 1.1
+        sd = math.sqrt(model.sigma_national**2 + model.sigma_district**2) * 1.1
         out.append(Prediction(str(r.contest_id), r.district_code, mean, sd, norm_cdf(mean / sd)))
     return out
 
 
-def simulate(model: Fitted, preds: list[Prediction], ci: CycleInputs, total_seats: int | None, seed: int,
-             n: int = 10000) -> dict:
+def simulate(
+    model: Fitted, preds: list[Prediction], ci: CycleInputs, total_seats: int | None, seed: int, n: int = 10000
+) -> dict:
     """Seat distribution with a shared national shock (Student-t, df = #training cycles)."""
     rng = np.random.default_rng(seed)
     df = max(3, len(model.train_cycles))
     nat_scale = model.sigma_national * (1.5 if ci.env_poll is None else 1.0)
     nat = rng.standard_t(df, size=n) * nat_scale * math.sqrt((df - 2) / df)
     means = np.array([p.mean for p in preds])
-    sd_d = np.sqrt(np.maximum(np.array([p.sd for p in preds]) ** 2 - nat_scale ** 2, 1e-6))
+    sd_d = np.sqrt(np.maximum(np.array([p.sd for p in preds]) ** 2 - nat_scale**2, 1e-6))
     fixed = np.array([p.p_a in (0.0, 1.0) and "uncontested" in " ".join(p.flags) for p in preds])
     draws = means[None, :] + nat[:, None] + rng.standard_normal((n, len(preds))) * sd_d[None, :]
     wins = (draws > 0).astype(int)
@@ -156,19 +160,30 @@ def simulate(model: Fitted, preds: list[Prediction], ci: CycleInputs, total_seat
     majority = (total_seats // 2 + 1) if total_seats else (k // 2 + 1)
     hist = np.bincount(seats_a, minlength=k + 1)
     return {
-        "n_simulations": n, "contests_modelled": k, "seats_total_office": total_seats, "majority_threshold": majority,
-        "seats_a": {"mean": round(float(seats_a.mean()), 2), "median": int(np.median(seats_a)),
-                    "p10": int(np.percentile(seats_a, 10)), "p90": int(np.percentile(seats_a, 90))},
-        "p_a_majority": round(float((seats_a >= majority).mean()), 4) if total_seats is None or k == total_seats
+        "n_simulations": n,
+        "contests_modelled": k,
+        "seats_total_office": total_seats,
+        "majority_threshold": majority,
+        "seats_a": {
+            "mean": round(float(seats_a.mean()), 2),
+            "median": int(np.median(seats_a)),
+            "p10": int(np.percentile(seats_a, 10)),
+            "p90": int(np.percentile(seats_a, 90)),
+        },
+        "p_a_majority": round(float((seats_a >= majority).mean()), 4)
+        if total_seats is None or k == total_seats
         else None,
-        "majority_note": None if total_seats is None or k == total_seats else
-        f"Only {k} of {total_seats} seats are modelled; chamber control probability is not reported.",
+        "majority_note": None
+        if total_seats is None or k == total_seats
+        else f"Only {k} of {total_seats} seats are modelled; chamber control probability is not reported.",
         "distribution": [{"seats": i, "share": round(float(c) / n, 5)} for i, c in enumerate(hist) if c],
-        "dependence": f"Shared national error ~ Student-t(df={df}, scale={nat_scale:.3f}); district errors independent.",
+        "dependence": f"Shared national error ~ Student-t(df={df}, scale={nat_scale:.3f}); "
+        "district errors independent.",
     }
 
 
 # ------------------------------------------------------------------ evaluation metrics
+
 
 def brier(preds: list[Prediction], outcomes: dict[str, float]) -> float | None:
     pairs = [(p.p_a, 1.0 if outcomes[p.contest_id] > 0 else 0.0) for p in preds if p.contest_id in outcomes]
@@ -177,8 +192,11 @@ def brier(preds: list[Prediction], outcomes: dict[str, float]) -> float | None:
 
 def log_loss(preds: list[Prediction], outcomes: dict[str, float]) -> float | None:
     eps = 1e-4
-    pairs = [(min(1 - eps, max(eps, p.p_a)), 1.0 if outcomes[p.contest_id] > 0 else 0.0)
-             for p in preds if p.contest_id in outcomes]
+    pairs = [
+        (min(1 - eps, max(eps, p.p_a)), 1.0 if outcomes[p.contest_id] > 0 else 0.0)
+        for p in preds
+        if p.contest_id in outcomes
+    ]
     return float(-np.mean([o * math.log(p) + (1 - o) * math.log(1 - p) for p, o in pairs])) if pairs else None
 
 
@@ -192,16 +210,20 @@ def calibration(preds: list[Prediction], outcomes: dict[str, float], bins: int =
         if not sel:
             continue
         mp, mo = float(np.mean([s[0] for s in sel])), float(np.mean([s[1] for s in sel]))
-        rows.append({"bin": f"{lo:.1f}-{hi:.1f}", "n": len(sel), "mean_predicted": round(mp, 3),
-                     "observed_rate": round(mo, 3)})
+        rows.append(
+            {"bin": f"{lo:.1f}-{hi:.1f}", "n": len(sel), "mean_predicted": round(mp, 3), "observed_rate": round(mo, 3)}
+        )
         ece += len(sel) * abs(mp - mo)
         n_total += len(sel)
     return {"bins": rows, "ece": round(ece / n_total, 4) if n_total else None}
 
 
 def interval_coverage(preds: list[Prediction], outcomes: dict[str, float], z: float = 1.2816) -> float | None:
-    hits = [abs(outcomes[p.contest_id] - p.mean) <= z * p.sd for p in preds if p.contest_id in outcomes and
-            not any("uncontested" in f for f in p.flags)]
+    hits = [
+        abs(outcomes[p.contest_id] - p.mean) <= z * p.sd
+        for p in preds
+        if p.contest_id in outcomes and not any("uncontested" in f for f in p.flags)
+    ]
     return float(np.mean(hits)) if hits else None
 
 
@@ -211,8 +233,13 @@ def mae(preds: list[Prediction], outcomes: dict[str, float]) -> float | None:
 
 
 def score(preds: list[Prediction], outcomes: dict[str, float]) -> dict:
-    return {"brier": brier(preds, outcomes), "log_loss": log_loss(preds, outcomes), "mae_margin": mae(preds, outcomes),
-            "coverage_80": interval_coverage(preds, outcomes), "n": sum(p.contest_id in outcomes for p in preds)}
+    return {
+        "brier": brier(preds, outcomes),
+        "log_loss": log_loss(preds, outcomes),
+        "mae_margin": mae(preds, outcomes),
+        "coverage_80": interval_coverage(preds, outcomes),
+        "n": sum(p.contest_id in outcomes for p in preds),
+    }
 
 
 def cutoff_for(election_date: date) -> date:

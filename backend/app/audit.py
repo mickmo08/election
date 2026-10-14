@@ -25,9 +25,16 @@ def record(
 ) -> None:
     db.add(
         AuditEvent(
-            tenant_id=tenant_id, actor_user_id=actor_user_id, actor_label=actor_label, action=action,
-            target_type=target_type, target_id=target_id, outcome=outcome, ip=ip,
-            request_id=request_id_var.get(), details=details or {},
+            tenant_id=tenant_id,
+            actor_user_id=actor_user_id,
+            actor_label=actor_label,
+            action=action,
+            target_type=target_type,
+            target_id=target_id,
+            outcome=outcome,
+            ip=ip,
+            request_id=request_id_var.get(),
+            details=details or {},
         )
     )
 

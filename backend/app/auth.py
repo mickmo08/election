@@ -27,23 +27,56 @@ from .observability import AUTHZ_DENIALS, tenant_var
 PERMISSIONS: dict[str, set[str]] = {
     "viewer": {"data:read", "reports:read_published", "forecasts:read"},
     "analyst": {
-        "data:read", "reports:read_published", "forecasts:read", "reports:read_drafts", "reports:write",
-        "assistant:query", "surveys:import", "polls:import", "data:export", "issues:label",
+        "data:read",
+        "reports:read_published",
+        "forecasts:read",
+        "reports:read_drafts",
+        "reports:write",
+        "assistant:query",
+        "surveys:import",
+        "polls:import",
+        "data:export",
+        "issues:label",
     },
     "reviewer": {
-        "data:read", "reports:read_published", "forecasts:read", "reports:read_drafts", "reports:review",
-        "reports:publish", "issues:label", "assistant:query", "data:export",
+        "data:read",
+        "reports:read_published",
+        "forecasts:read",
+        "reports:read_drafts",
+        "reports:review",
+        "reports:publish",
+        "issues:label",
+        "assistant:query",
+        "data:export",
     },
     "admin": {
-        "data:read", "reports:read_published", "forecasts:read", "reports:read_drafts", "reports:write",
-        "reports:review", "reports:publish", "assistant:query", "surveys:import", "polls:import",
-        "data:export", "issues:label", "tenant:admin", "audit:read", "usage:read",
+        "data:read",
+        "reports:read_published",
+        "forecasts:read",
+        "reports:read_drafts",
+        "reports:write",
+        "reports:review",
+        "reports:publish",
+        "assistant:query",
+        "surveys:import",
+        "polls:import",
+        "data:export",
+        "issues:label",
+        "tenant:admin",
+        "audit:read",
+        "usage:read",
     },
 }
 # Platform operators run the shared data platform; they do not gain tenant research access.
 OPERATOR_PERMISSIONS = {
-    "sources:manage", "ingestion:run", "quarantine:review", "race_calls:record", "forecasts:run",
-    "forecasts:publish", "ops:read", "tenants:manage",
+    "sources:manage",
+    "ingestion:run",
+    "quarantine:review",
+    "race_calls:record",
+    "forecasts:run",
+    "forecasts:publish",
+    "ops:read",
+    "tenants:manage",
 }
 
 
@@ -78,8 +111,13 @@ def decode_token(token: str) -> dict:
             AUTHZ_DENIALS.labels("dev_token_refused").inc()
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, "token type not accepted")
         try:
-            return jwt.decode(token, s.dev_auth_secret, algorithms=["HS256"], audience="election-dev",
-                              options={"require": ["exp", "sub", "iss"]})
+            return jwt.decode(
+                token,
+                s.dev_auth_secret,
+                algorithms=["HS256"],
+                audience="election-dev",
+                options={"require": ["exp", "sub", "iss"]},
+            )
         except jwt.PyJWTError as exc:
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid token") from exc
     if alg not in ("RS256", "RS384", "RS512", "ES256", "ES384", "PS256"):
@@ -88,8 +126,15 @@ def decode_token(token: str) -> dict:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "OIDC is not configured")
     try:
         key = _jwks_client(s.oidc_jwks_url).get_signing_key_from_jwt(token).key
-        return jwt.decode(token, key, algorithms=[alg], audience=s.oidc_audience, issuer=s.oidc_issuer,
-                          options={"require": ["exp", "sub", "iss"]}, leeway=30)
+        return jwt.decode(
+            token,
+            key,
+            algorithms=[alg],
+            audience=s.oidc_audience,
+            issuer=s.oidc_issuer,
+            options={"require": ["exp", "sub", "iss"]},
+            leeway=30,
+        )
     except jwt.PyJWTError as exc:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid token") from exc
 
@@ -101,16 +146,25 @@ def issue_dev_token(subject: str, email: str, ttl: int = 3600) -> str:
         raise RuntimeError("dev tokens are disabled in this environment")
     now = int(time.time())
     return jwt.encode(
-        {"sub": subject, "email": email, "email_verified": True, "iss": "election-dev", "aud": "election-dev",
-         "iat": now, "exp": now + ttl},
-        s.dev_auth_secret, algorithm="HS256",
+        {
+            "sub": subject,
+            "email": email,
+            "email_verified": True,
+            "iss": "election-dev",
+            "aud": "election-dev",
+            "iat": now,
+            "exp": now + ttl,
+        },
+        s.dev_auth_secret,
+        algorithm="HS256",
     )
 
 
 def get_db(request: Request):  # type: ignore[no-untyped-def]
     """Request-scoped session on the RLS-subject role. Tenant context is bound by `principal`."""
-    from .db import app_engine  # noqa: PLC0415
     from sqlalchemy.orm import sessionmaker  # noqa: PLC0415
+
+    from .db import app_engine  # noqa: PLC0415
 
     session = sessionmaker(app_engine(), expire_on_commit=False)()
     try:
@@ -129,8 +183,12 @@ def get_db(request: Request):  # type: ignore[no-untyped-def]
 def _resolve_user(db: Session, claims: dict) -> User:
     user = db.scalar(select(User).where(User.issuer == claims["iss"], User.subject == claims["sub"]))
     if user is None:
-        user = User(issuer=claims["iss"], subject=claims["sub"], email=claims.get("email"),
-                    display_name=claims.get("name") or claims.get("email"))
+        user = User(
+            issuer=claims["iss"],
+            subject=claims["sub"],
+            email=claims.get("email"),
+            display_name=claims.get("name") or claims.get("email"),
+        )
         db.add(user)
         db.flush()
     return user
@@ -140,8 +198,9 @@ def authenticate(request: Request, db: Session = Depends(get_db)) -> tuple[User,
     auth = request.headers.get("authorization", "")
     if not auth.lower().startswith("bearer "):
         AUTHZ_DENIALS.labels("missing_token").inc()
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "authentication required",
-                            headers={"WWW-Authenticate": "Bearer"})
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED, "authentication required", headers={"WWW-Authenticate": "Bearer"}
+        )
     claims = decode_token(auth[7:].strip())
     return _resolve_user(db, claims), claims
 
@@ -156,9 +215,7 @@ def principal(
     if not x_tenant:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "X-Tenant header is required")
     tenant = db.scalar(select(Tenant).where(Tenant.slug == x_tenant))
-    membership = (
-        db.get(Membership, {"tenant_id": tenant.id, "user_id": user.id}) if tenant is not None else None
-    )
+    membership = db.get(Membership, {"tenant_id": tenant.id, "user_id": user.id}) if tenant is not None else None
     if tenant is None or membership is None or tenant.status != "active":
         AUTHZ_DENIALS.labels("no_membership").inc()
         # Same response whether the tenant exists or not, to avoid tenant enumeration.
@@ -172,8 +229,15 @@ def principal(
         perms |= OPERATOR_PERMISSIONS
     set_tenant(db, tenant.id)
     tenant_var.set(str(tenant.id))
-    p = Principal(user.id, user.email or user.subject, tenant.id, tenant.slug, membership.role,
-                  user.is_platform_operator, frozenset(perms))
+    p = Principal(
+        user.id,
+        user.email or user.subject,
+        tenant.id,
+        tenant.slug,
+        membership.role,
+        user.is_platform_operator,
+        frozenset(perms),
+    )
     request.state.principal = p
     return p
 

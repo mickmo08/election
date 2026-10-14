@@ -17,8 +17,7 @@ def run_migrations_online() -> None:
 
 
 def run_migrations_offline() -> None:
-    context.configure(url=get_settings().migration_database_url, target_metadata=target_metadata,
-                      literal_binds=True)
+    context.configure(url=get_settings().migration_database_url, target_metadata=target_metadata, literal_binds=True)
     with context.begin_transaction():
         context.run_migrations()
 

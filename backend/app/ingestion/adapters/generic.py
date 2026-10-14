@@ -30,8 +30,14 @@ def _contest_for(ctx: RunContext, r: Resolver, row: dict, ref: str, year: int, e
         return None
     stage = "primary" if "primary" in kind else ("runoff" if "runoff" in kind else "general")
     system = adapter.system_for(office.key, unit.code if unit else None, stage)
-    election = r.election(year, kind, edate, (unit.timezone if unit else None) or adapter.default_timezone,
-                          row.get("citation_url") or f"source: {ctx.source.key}", unit if kind != "general" else None)
+    election = r.election(
+        year,
+        kind,
+        edate,
+        (unit.timezone if unit else None) or adapter.default_timezone,
+        row.get("citation_url") or f"source: {ctx.source.key}",
+        unit if kind != "general" else None,
+    )
     party = r.party(row.get("primary_party"), ref) if row.get("primary_party") else None
     seats = int(row.get("seats") or 1)
     is_special = parse_bool(row.get("is_special", "")) or kind.startswith("special")
@@ -44,12 +50,30 @@ def _contest_for(ctx: RunContext, r: Resolver, row: dict, ref: str, year: int, e
         plan = r.plan_as_contested(office, unit, year)
         dist = r.district(plan, row["district"], row.get("district_name") or row["district"], unit, seats)
         label = f"{office.name} {row['district']}"
-        return r.contest(election, office, f"{label} ({year}{', ' + kind if kind != 'general' else ''})", system,
-                         district=dist, unit=unit, party=party, seats=seats, is_special=is_special,
-                         seat_class=seat_class)
+        return r.contest(
+            election,
+            office,
+            f"{label} ({year}{', ' + kind if kind != 'general' else ''})",
+            system,
+            district=dist,
+            unit=unit,
+            party=party,
+            seats=seats,
+            is_special=is_special,
+            seat_class=seat_class,
+        )
     name = row.get("contest_name") or f"{office.name} {unit.name if unit else ''}".strip()
-    return r.contest(election, office, f"{name} ({year}{', ' + kind if kind != 'general' else ''})", system,
-                     unit=unit, party=party, seats=seats, is_special=is_special, seat_class=seat_class)
+    return r.contest(
+        election,
+        office,
+        f"{name} ({year}{', ' + kind if kind != 'general' else ''})",
+        system,
+        unit=unit,
+        party=party,
+        seats=seats,
+        is_special=is_special,
+        seat_class=seat_class,
+    )
 
 
 class EditorialContestsAdapter(SourceAdapter):
@@ -58,8 +82,7 @@ class EditorialContestsAdapter(SourceAdapter):
     key = "editorial_contests_csv"
     version = "1.0.0"
     schema_version = "editorial-contests-v1"
-    REQUIRED = ("country", "election_kind", "election_date", "admin_unit", "office_key", "citation_url",
-                "verified_by")
+    REQUIRED = ("country", "election_kind", "election_date", "admin_unit", "office_key", "citation_url", "verified_by")
 
     def process(self, ctx: RunContext, files: list[FetchedFile]) -> None:
         for f in files:
@@ -68,8 +91,9 @@ class EditorialContestsAdapter(SourceAdapter):
                 ref = f"{f.filename} row {i}"
                 issues: list[Issue] = []
                 if not row["citation_url"].startswith("https://"):
-                    ctx.quarantine(Issue(ref, "citation_required", "citation_url must be an https URL to an "
-                                                                   "official source"))
+                    ctx.quarantine(
+                        Issue(ref, "citation_required", "citation_url must be an https URL to an " "official source")
+                    )
                     continue
                 if not row["verified_by"]:
                     ctx.quarantine(Issue(ref, "verifier_required", "verified_by is required"))
@@ -92,8 +116,20 @@ class OfficialResultsAdapter(SourceAdapter):
     key = "official_results_csv"
     version = "1.0.0"
     schema_version = "official-results-v1"
-    REQUIRED = ("country", "election_kind", "election_date", "admin_unit", "office_key", "district", "candidate",
-                "party", "votes", "status", "source_as_of", "reporting_pct")
+    REQUIRED = (
+        "country",
+        "election_kind",
+        "election_date",
+        "admin_unit",
+        "office_key",
+        "district",
+        "candidate",
+        "party",
+        "votes",
+        "status",
+        "source_as_of",
+        "reporting_pct",
+    )
 
     def process(self, ctx: RunContext, files: list[FetchedFile]) -> None:
         for f in files:
@@ -101,9 +137,18 @@ class OfficialResultsAdapter(SourceAdapter):
             raw = ctx.raw_file_for(f)
             groups: dict[tuple, list[tuple[int, dict]]] = defaultdict(list)
             for i, row in enumerate(rows, start=2):
-                groups[(row["country"], row["election_kind"], row["election_date"], row["admin_unit"],
-                        row["office_key"], row["district"], row.get("primary_party", ""))].append((i, row))
-            for key, items in groups.items():
+                groups[
+                    (
+                        row["country"],
+                        row["election_kind"],
+                        row["election_date"],
+                        row["admin_unit"],
+                        row["office_key"],
+                        row["district"],
+                        row.get("primary_party", ""),
+                    )
+                ].append((i, row))
+            for items in groups.values():
                 ref = f"{f.filename} rows {items[0][0]}-{items[-1][0]}"
                 issues: list[Issue] = []
                 first = items[0][1]
@@ -111,8 +156,14 @@ class OfficialResultsAdapter(SourceAdapter):
                 try:
                     status = adapter.normalize_status(first["status"])
                 except ValueError as exc:
-                    ctx.quarantine(Issue(ref, "status", str(exc), suggested_action="Add the label to the country "
-                                                                                   "adapter's status map."))
+                    ctx.quarantine(
+                        Issue(
+                            ref,
+                            "status",
+                            str(exc),
+                            suggested_action="Add the label to the country " "adapter's status map.",
+                        )
+                    )
                     continue
                 if len({row["status"] for _, row in items}) > 1:
                     ctx.quarantine(Issue(ref, "status", "rows of one contest carry different statuses"))
@@ -151,13 +202,31 @@ class OfficialResultsAdapter(SourceAdapter):
                 if issues:  # any bad row invalidates the contest's snapshot (partial totals are misleading)
                     ctx.issues.extend(issues)
                     continue
-                write_snapshot(ctx, contest, status=status, lines=lines, retrieved_at=f.retrieved_at,
-                               raw_file_id=raw.id, record_ref=ref, source_as_of=as_of, reporting_pct=pct,
-                               reporting_supported=supported, correction_note=first.get("correction_note") or None)
+                write_snapshot(
+                    ctx,
+                    contest,
+                    status=status,
+                    lines=lines,
+                    retrieved_at=f.retrieved_at,
+                    raw_file_id=raw.id,
+                    record_ref=ref,
+                    source_as_of=as_of,
+                    reporting_pct=pct,
+                    reporting_supported=supported,
+                    correction_note=first.get("correction_note") or None,
+                )
 
 
-POPULATIONS = {"a": "a", "adults": "a", "rv": "rv", "registered voters": "rv", "lv": "lv", "likely voters": "lv",
-               "v": "v", "voters": "v"}
+POPULATIONS = {
+    "a": "a",
+    "adults": "a",
+    "rv": "rv",
+    "registered voters": "rv",
+    "lv": "lv",
+    "likely voters": "lv",
+    "v": "v",
+    "voters": "v",
+}
 SAMPLING = ("probability", "nonprobability", "mixed", "unknown")
 
 
@@ -165,8 +234,21 @@ class PollsAdapter(SourceAdapter):
     key = "polls_csv"
     version = "1.0.0"
     schema_version = "polls-v1"
-    REQUIRED = ("pollster", "country", "question_scope", "field_start", "field_end", "population", "sample_size",
-                "mode", "sampling_method", "methodology_url", "question_wording", "choice", "pct")
+    REQUIRED = (
+        "pollster",
+        "country",
+        "question_scope",
+        "field_start",
+        "field_end",
+        "population",
+        "sample_size",
+        "mode",
+        "sampling_method",
+        "methodology_url",
+        "question_wording",
+        "choice",
+        "pct",
+    )
 
     def process(self, ctx: RunContext, files: list[FetchedFile]) -> None:
         tenant_id = ctx.params.get("tenant_id")
@@ -175,9 +257,17 @@ class PollsAdapter(SourceAdapter):
             raw = ctx.raw_file_for(f)
             polls: dict[tuple, list[tuple[int, dict]]] = defaultdict(list)
             for i, row in enumerate(rows, start=2):
-                k = (row["pollster"], row.get("sponsor", ""), row["field_start"], row["field_end"],
-                     row["population"].lower(), row.get("admin_unit", ""), row.get("office_key", ""),
-                     row.get("district", ""), row["question_scope"])
+                k = (
+                    row["pollster"],
+                    row.get("sponsor", ""),
+                    row["field_start"],
+                    row["field_end"],
+                    row["population"].lower(),
+                    row.get("admin_unit", ""),
+                    row.get("office_key", ""),
+                    row.get("district", ""),
+                    row["question_scope"],
+                )
                 polls[k].append((i, row))
             for items in polls.values():
                 self._load_poll(ctx, f, raw.id, items, tenant_id)
@@ -204,9 +294,15 @@ class PollsAdapter(SourceAdapter):
             ctx.issues.extend(issues)
             return
         if moe is not None and sampling == "nonprobability":
-            ctx.quarantine(Issue(ref, "moe_nonprobability", "pollster published a margin of error for a "
-                                 "nonprobability sample; stored as published but not displayed as a sampling MOE",
-                                 severity="warning"))
+            ctx.quarantine(
+                Issue(
+                    ref,
+                    "moe_nonprobability",
+                    "pollster published a margin of error for a "
+                    "nonprobability sample; stored as published but not displayed as a sampling MOE",
+                    severity="warning",
+                )
+            )
         r = Resolver(ctx, first["country"])
         contest = None
         if first["question_scope"] == "contest":
@@ -223,15 +319,29 @@ class PollsAdapter(SourceAdapter):
             ctx.db.add(pollster)
             ctx.db.flush()
         unit = r.unit(first["admin_unit"]) if first.get("admin_unit") else None
-        poll = Poll(tenant_id=tenant_id, pollster_id=pollster.id, sponsor=first.get("sponsor") or None,
-                    sponsor_is_partisan=parse_bool(first.get("sponsor_is_partisan", "")),
-                    country_code=first["country"], admin_unit_id=unit.id if unit else None,
-                    contest_id=contest.id if contest else None, question_scope=first["question_scope"],
-                    field_start=start, field_end=end, population=pop, sample_size=n, mode=first["mode"],
-                    sampling_method=sampling, weighting=first.get("weighting", ""),
-                    methodology_url=first["methodology_url"], questionnaire_url=first.get("questionnaire_url") or None,
-                    published_moe=moe, tracking_series=first.get("tracking_series") or None,
-                    source_id=ctx.source.id, raw_file_id=raw_id)
+        poll = Poll(
+            tenant_id=tenant_id,
+            pollster_id=pollster.id,
+            sponsor=first.get("sponsor") or None,
+            sponsor_is_partisan=parse_bool(first.get("sponsor_is_partisan", "")),
+            country_code=first["country"],
+            admin_unit_id=unit.id if unit else None,
+            contest_id=contest.id if contest else None,
+            question_scope=first["question_scope"],
+            field_start=start,
+            field_end=end,
+            population=pop,
+            sample_size=n,
+            mode=first["mode"],
+            sampling_method=sampling,
+            weighting=first.get("weighting", ""),
+            methodology_url=first["methodology_url"],
+            questionnaire_url=first.get("questionnaire_url") or None,
+            published_moe=moe,
+            tracking_series=first.get("tracking_series") or None,
+            source_id=ctx.source.id,
+            raw_file_id=raw_id,
+        )
         ctx.db.add(poll)
         ctx.db.flush()
         questions: dict[str, PollQuestion] = {}
@@ -249,12 +359,20 @@ class PollsAdapter(SourceAdapter):
             subgroup = row.get("subgroup") or "all"
             totals[(row["question_wording"], subgroup)] += pct
             party = r.party(row.get("party"), ref) if row.get("party") else None
-            ctx.db.add(PollResult(question_id=q.id, choice=row["choice"], party_id=party.id if party else None,
-                                  pct=pct, subgroup=subgroup))
-        for (wording, subgroup), total in totals.items():
+            ctx.db.add(
+                PollResult(
+                    question_id=q.id,
+                    choice=row["choice"],
+                    party_id=party.id if party else None,
+                    pct=pct,
+                    subgroup=subgroup,
+                )
+            )
+        for (_wording, subgroup), total in totals.items():
             if total > 101.0:
-                ctx.quarantine(Issue(ref, "pct_sum", f"responses for {subgroup!r} sum to {total:.1f}% (>101%)",
-                                     severity="warning"))
+                ctx.quarantine(
+                    Issue(ref, "pct_sum", f"responses for {subgroup!r} sum to {total:.1f}% (>101%)", severity="warning")
+                )
         ctx.count("polls")
 
 

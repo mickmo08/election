@@ -60,8 +60,9 @@ class S3RawStore:
         try:
             self.client.head_object(Bucket=self.bucket, Key=key)
         except self.client.exceptions.ClientError:
-            self.client.put_object(Bucket=self.bucket, Key=key, Body=data, ChecksumAlgorithm="SHA256",
-                                   ServerSideEncryption="aws:kms")
+            self.client.put_object(
+                Bucket=self.bucket, Key=key, Body=data, ChecksumAlgorithm="SHA256", ServerSideEncryption="aws:kms"
+            )
         return key, digest
 
     def get(self, storage_key: str) -> bytes:

@@ -25,9 +25,17 @@ class DocumentsAdapter(SourceAdapter):
 
     def process(self, ctx: RunContext, files: list[FetchedFile]) -> None:
         if not ctx.source.permits_text_analysis:
-            raise StructuralError([Issue("source", "licence", f"{ctx.source.key} licence does not permit text "
-                                         "analysis", blocking=True,
-                                         suggested_action="Record a licence that permits text and data mining.")])
+            raise StructuralError(
+                [
+                    Issue(
+                        "source",
+                        "licence",
+                        f"{ctx.source.key} licence does not permit text " "analysis",
+                        blocking=True,
+                        suggested_action="Record a licence that permits text and data mining.",
+                    )
+                ]
+            )
         tenant_id = ctx.params.get("tenant_id")
         for f in files:
             raw = ctx.raw_file_for(f)
@@ -41,12 +49,19 @@ class DocumentsAdapter(SourceAdapter):
                     ctx.quarantine(Issue(ref, "json", "invalid JSON line"))
                     continue
                 if FORBIDDEN_FIELDS & item.keys():
-                    ctx.quarantine(Issue(ref, "personal_data", "item contains author/user fields; rejected",
-                                         payload={"fields": sorted(FORBIDDEN_FIELDS & item.keys())},
-                                         suggested_action="Strip author identifiers upstream."))
+                    ctx.quarantine(
+                        Issue(
+                            ref,
+                            "personal_data",
+                            "item contains author/user fields; rejected",
+                            payload={"fields": sorted(FORBIDDEN_FIELDS & item.keys())},
+                            suggested_action="Strip author identifiers upstream.",
+                        )
+                    )
                     continue
-                missing = [k for k in ("external_id", "kind", "title", "body", "published_at", "country") if
-                           not item.get(k)]
+                missing = [
+                    k for k in ("external_id", "kind", "title", "body", "published_at", "country") if not item.get(k)
+                ]
                 if missing:
                     ctx.quarantine(Issue(ref, "schema", f"missing fields {missing}"))
                     continue
@@ -58,22 +73,31 @@ class DocumentsAdapter(SourceAdapter):
                 if published is None:
                     ctx.issues.extend(issues)
                     continue
-                exists = ctx.db.scalar(select(Document.id).where(Document.source_id == ctx.source.id,
-                                                                 Document.external_id == str(item["external_id"])))
+                exists = ctx.db.scalar(
+                    select(Document.id).where(
+                        Document.source_id == ctx.source.id, Document.external_id == str(item["external_id"])
+                    )
+                )
                 if exists:
                     ctx.count("already_present")
                     continue
                 text = f"{item['title']}. {item['body']}"
                 lang, props = detect_languages(text)
-                chash = content_hash(text)
-                sig = minhash(text)
-                dup_of = ctx.db.scalar(select(Document.id).where(Document.content_hash == chash,
-                                                                 Document.duplicate_of_id.is_(None)).limit(1))
+                chash = content_hash(item["body"])  # dedupe on body: syndication often rewrites headlines
+                sig = minhash(item["body"])
+                dup_of = ctx.db.scalar(
+                    select(Document.id)
+                    .where(Document.content_hash == chash, Document.duplicate_of_id.is_(None))
+                    .limit(1)
+                )
                 if dup_of is None:
-                    window = ctx.db.execute(select(Document.id, Document.minhash).where(
-                        Document.duplicate_of_id.is_(None), Document.country_code == item["country"],
-                        Document.published_at.between(published - timedelta(days=3), published + timedelta(days=3))
-                    )).all()
+                    window = ctx.db.execute(
+                        select(Document.id, Document.minhash).where(
+                            Document.duplicate_of_id.is_(None),
+                            Document.country_code == item["country"],
+                            Document.published_at.between(published - timedelta(days=3), published + timedelta(days=3)),
+                        )
+                    ).all()
                     for did, other in window:
                         if jaccard_estimate(sig, other) >= NEAR_DUP:
                             dup_of = did
@@ -82,12 +106,27 @@ class DocumentsAdapter(SourceAdapter):
                 if item.get("admin_unit"):
                     unit = Resolver(ctx, item["country"]).unit(item["admin_unit"])
                     geo_conf = "high" if unit else "none"
-                ctx.db.add(Document(
-                    tenant_id=tenant_id, source_id=ctx.source.id, external_id=str(item["external_id"]),
-                    kind=item["kind"], url=item.get("url"), title=item["title"], body=item["body"],
-                    published_at=published, language=item.get("language") or lang, languages_detected=props,
-                    country_code=item["country"], admin_unit_id=unit.id if unit else None, geo_confidence=geo_conf,
-                    content_hash=chash, minhash=sig, duplicate_of_id=dup_of, raw_file_id=raw.id))
+                ctx.db.add(
+                    Document(
+                        tenant_id=tenant_id,
+                        source_id=ctx.source.id,
+                        external_id=str(item["external_id"]),
+                        kind=item["kind"],
+                        url=item.get("url"),
+                        title=item["title"],
+                        body=item["body"],
+                        published_at=published,
+                        language=item.get("language") or lang,
+                        languages_detected=props,
+                        country_code=item["country"],
+                        admin_unit_id=unit.id if unit else None,
+                        geo_confidence=geo_conf,
+                        content_hash=chash,
+                        minhash=sig,
+                        duplicate_of_id=dup_of,
+                        raw_file_id=raw.id,
+                    )
+                )
                 ctx.db.flush()
                 ctx.count("duplicates" if dup_of else "documents")
 

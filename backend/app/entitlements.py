@@ -12,15 +12,24 @@ from sqlalchemy.orm import Session
 from .models import Plan, Tenant, UsageEvent
 
 DEFAULT_PLANS = [
-    {"key": "research", "name": "Research",
-     "quotas": {"ai_queries": 500, "imports": 50, "exports": 200, "storage_bytes": 5 * 1024**3},
-     "features": ["explorer", "polling", "issues", "forecasts", "assistant", "reports"]},
-    {"key": "newsroom", "name": "Newsroom",
-     "quotas": {"ai_queries": 5000, "imports": 500, "exports": 2000, "storage_bytes": 50 * 1024**3},
-     "features": ["explorer", "polling", "issues", "forecasts", "assistant", "reports", "results_monitoring"]},
-    {"key": "trial", "name": "Trial",
-     "quotas": {"ai_queries": 50, "imports": 5, "exports": 20, "storage_bytes": 512 * 1024**2},
-     "features": ["explorer", "polling", "forecasts", "assistant"]},
+    {
+        "key": "research",
+        "name": "Research",
+        "quotas": {"ai_queries": 500, "imports": 50, "exports": 200, "storage_bytes": 5 * 1024**3},
+        "features": ["explorer", "polling", "issues", "forecasts", "assistant", "reports"],
+    },
+    {
+        "key": "newsroom",
+        "name": "Newsroom",
+        "quotas": {"ai_queries": 5000, "imports": 500, "exports": 2000, "storage_bytes": 50 * 1024**3},
+        "features": ["explorer", "polling", "issues", "forecasts", "assistant", "reports", "results_monitoring"],
+    },
+    {
+        "key": "trial",
+        "name": "Trial",
+        "quotas": {"ai_queries": 50, "imports": 5, "exports": 20, "storage_bytes": 512 * 1024**2},
+        "features": ["explorer", "polling", "forecasts", "assistant"],
+    },
 ]
 
 
@@ -30,15 +39,19 @@ def month_start(now: datetime | None = None) -> datetime:
 
 
 def usage_this_month(db: Session, tenant_id: uuid.UUID, metric: str) -> int:
-    return int(db.scalar(
-        select(func.coalesce(func.sum(UsageEvent.quantity), 0)).where(
-            UsageEvent.tenant_id == tenant_id, UsageEvent.metric == metric,
-            UsageEvent.created_at >= month_start())
-    ) or 0)
+    return int(
+        db.scalar(
+            select(func.coalesce(func.sum(UsageEvent.quantity), 0)).where(
+                UsageEvent.tenant_id == tenant_id, UsageEvent.metric == metric, UsageEvent.created_at >= month_start()
+            )
+        )
+        or 0
+    )
 
 
-def check_and_meter(db: Session, tenant_id: uuid.UUID, metric: str, quantity: int = 1,
-                    details: dict | None = None) -> None:
+def check_and_meter(
+    db: Session, tenant_id: uuid.UUID, metric: str, quantity: int = 1, details: dict | None = None
+) -> None:
     """Raise 402/403 if the quota would be exceeded; otherwise record usage atomically."""
     tenant = db.get(Tenant, tenant_id)
     plan = db.get(Plan, tenant.plan_key) if tenant else None

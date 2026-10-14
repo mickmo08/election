@@ -196,7 +196,9 @@ class Election(Base):
 
 class Contest(Base):
     __tablename__ = "contests"
-    __table_args__ = (UniqueConstraint("election_id", "office_id", "district_id", "admin_unit_id", "party_id", "seat_class"),)
+    __table_args__ = (
+        UniqueConstraint("election_id", "office_id", "district_id", "admin_unit_id", "party_id", "seat_class"),
+    )
     id: Mapped[uuid.UUID] = uuid_pk()
     election_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("elections.id"), index=True)
     office_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("offices.id"), index=True)

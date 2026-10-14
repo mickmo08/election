@@ -51,8 +51,14 @@ class FecCandidatesAdapter(SourceAdapter):
         files, page, pages = [], 1, 1
         with httpx.Client(timeout=30) as client:
             while page <= pages:
-                q = {"election_year": year, "office": office, "per_page": 100, "page": page, "api_key": key,
-                     "sort": "name"}
+                q = {
+                    "election_year": year,
+                    "office": office,
+                    "per_page": 100,
+                    "page": page,
+                    "api_key": key,
+                    "sort": "name",
+                }
                 if params.get("state"):
                     q["state"] = params["state"]
                 try:
@@ -67,9 +73,16 @@ class FecCandidatesAdapter(SourceAdapter):
                 body = resp.json()
                 pages = int(body.get("pagination", {}).get("pages", 1))
                 public_url = str(resp.url).replace(key, "REDACTED")  # never persist secrets in provenance
-                files.append(FetchedFile(public_url, resp.content.replace(key.encode(), b"REDACTED"),
-                                         "application/json", datetime.now(UTC),
-                                         {"status": resp.status_code, "page": page}, f"fec-{office}-{year}-p{page}.json"))
+                files.append(
+                    FetchedFile(
+                        public_url,
+                        resp.content.replace(key.encode(), b"REDACTED"),
+                        "application/json",
+                        datetime.now(UTC),
+                        {"status": resp.status_code, "page": page},
+                        f"fec-{office}-{year}-p{page}.json",
+                    )
+                )
                 page += 1
                 time.sleep(0.7)  # stay well under per-key rate limits
         return files
@@ -84,8 +97,9 @@ class FecCandidatesAdapter(SourceAdapter):
                 body = json.loads(f.content)
                 results = body["results"]
             except (ValueError, KeyError) as exc:
-                raise StructuralError([Issue(f.filename or f.url, "schema", f"not an OpenFEC page: {exc}",
-                                             blocking=True)]) from exc
+                raise StructuralError(
+                    [Issue(f.filename or f.url, "schema", f"not an OpenFEC page: {exc}", blocking=True)]
+                ) from exc
             for n, c in enumerate(results):
                 ref = f"{f.filename} result {n}"
                 cid = c.get("candidate_id", "")
@@ -100,8 +114,9 @@ class FecCandidatesAdapter(SourceAdapter):
                 if unit is None:
                     ctx.quarantine(Issue(ref, "geo_join", f"unknown state {state!r} for {cid}"))
                     continue
-                election = r.election(year, "general", edate, unit.timezone or "America/New_York",
-                                      "2 U.S.C. 7 (derived by rule)")
+                election = r.election(
+                    year, "general", edate, unit.timezone or "America/New_York", "2 U.S.C. 7 (derived by rule)"
+                )
                 if office_code == "H":
                     seats = unit_seats(r, unit)
                     try:
@@ -111,40 +126,70 @@ class FecCandidatesAdapter(SourceAdapter):
                         continue
                     if seats == 0:
                         office = r.office("us_house_delegate")
-                        contest = r.contest(election, office, f"Delegate {unit.abbreviation} ({year})", "fptp",
-                                            unit=unit)
+                        contest = r.contest(
+                            election, office, f"Delegate {unit.abbreviation} ({year})", "fptp", unit=unit
+                        )
                     else:
                         # 2020 apportionment governs 2022-2030 elections only.
                         in_range = (dnum in (0, 1)) if seats == 1 else (1 <= dnum <= seats)
                         if 2022 <= year <= 2030 and not in_range:
-                            ctx.quarantine(Issue(ref, "district_range",
-                                                 f"{state}-{dnum} outside 1..{seats} (2020 apportionment)",
-                                                 suggested_action="Check the FEC record; may be a data entry error."))
+                            ctx.quarantine(
+                                Issue(
+                                    ref,
+                                    "district_range",
+                                    f"{state}-{dnum} outside 1..{seats} (2020 apportionment)",
+                                    suggested_action="Check the FEC record; may be a data entry error.",
+                                )
+                            )
                             continue
                         code = f"{state}-AL" if seats == 1 else f"{state}-{dnum:02d}"
                         office = r.office("us_house")
                         plan = r.plan_as_contested(office, unit, year)
-                        dist = r.district(plan, code, f"{unit.name} {'at-large' if seats == 1 else f'district {dnum}'}",
-                                          unit)
-                        contest = r.contest(election, office, f"U.S. House {code} ({year})",
-                                            US.system_for("us_house", unit.code, "general"), district=dist, unit=unit)
+                        dist = r.district(
+                            plan, code, f"{unit.name} {'at-large' if seats == 1 else f'district {dnum}'}", unit
+                        )
+                        contest = r.contest(
+                            election,
+                            office,
+                            f"U.S. House {code} ({year})",
+                            US.system_for("us_house", unit.code, "general"),
+                            district=dist,
+                            unit=unit,
+                        )
                 elif office_code == "S":
                     classes = unit_classes(r, unit)
                     if expected_class not in classes:
-                        ctx.quarantine(Issue(ref, "senate_special_unconfirmed",
-                                             f"{state} has no class {expected_class} seat in {year}; filing may be "
-                                             "for a special election", severity="warning",
-                                             suggested_action="Confirm via the editorial calendar (with citation)."))
+                        ctx.quarantine(
+                            Issue(
+                                ref,
+                                "senate_special_unconfirmed",
+                                f"{state} has no class {expected_class} seat in {year}; filing may be "
+                                "for a special election",
+                                severity="warning",
+                                suggested_action="Confirm via the editorial calendar (with citation).",
+                            )
+                        )
                     office = r.office("us_senate")
-                    contest = r.contest(election, office, f"U.S. Senate {state} ({year})",
-                                        US.system_for("us_senate", unit.code, "general"), unit=unit)
+                    contest = r.contest(
+                        election,
+                        office,
+                        f"U.S. Senate {state} ({year})",
+                        US.system_for("us_senate", unit.code, "general"),
+                        unit=unit,
+                    )
                 else:
                     ctx.count("skipped_office")
                     continue
                 party = r.party(c.get("party") or c.get("party_full"), ref)
                 cand = r.candidate(c.get("name") or cid, unit, {"fec": cid})
-                r.candidacy(contest, cand, c.get("name") or cid, party,
-                            incumbent=(c.get("incumbent_challenge") == "I"), status="filed_with_fec")
+                r.candidacy(
+                    contest,
+                    cand,
+                    c.get("name") or cid,
+                    party,
+                    incumbent=(c.get("incumbent_challenge") == "I"),
+                    status="filed_with_fec",
+                )
                 ctx.count("filings")
         ctx.check("fec_pages", True, f"{len(files)} page(s)")
 

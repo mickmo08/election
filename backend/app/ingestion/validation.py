@@ -24,10 +24,19 @@ def read_csv(content: bytes, required: Iterable[str], ref: str = "file") -> list
     header = [h.strip() for h in (reader.fieldnames or [])]
     missing = [c for c in required if c not in header]
     if missing:
-        raise StructuralError([Issue(
-            ref, "schema", f"missing required columns: {', '.join(missing)}", blocking=True,
-            suggested_action="Confirm the publisher has not changed the file layout; update the adapter "
-                             "schema version if it has.", payload={"header": header})])
+        raise StructuralError(
+            [
+                Issue(
+                    ref,
+                    "schema",
+                    f"missing required columns: {', '.join(missing)}",
+                    blocking=True,
+                    suggested_action="Confirm the publisher has not changed the file layout; update the adapter "
+                    "schema version if it has.",
+                    payload={"header": header},
+                )
+            ]
+        )
     return [{(k or "").strip(): (v or "").strip() for k, v in row.items()} for row in reader]
 
 
@@ -43,8 +52,9 @@ def parse_int(value: str, field: str, ref: str, issues: list[Issue], *, minimum:
     return v
 
 
-def parse_float(value: str, field: str, ref: str, issues: list[Issue], lo: float | None = None,
-                hi: float | None = None) -> float | None:
+def parse_float(
+    value: str, field: str, ref: str, issues: list[Issue], lo: float | None = None, hi: float | None = None
+) -> float | None:
     if value in ("", "NA", None):
         return None
     try:
@@ -90,12 +100,20 @@ def check_totals(lines_sum: int, reported_total: int | None, ref: str, tolerance
     if reported_total is None:
         return None
     if lines_sum > reported_total:
-        return Issue(ref, "totals", f"candidate votes {lines_sum} exceed reported total {reported_total}",
-                     suggested_action="Check for duplicated rows or fusion-ticket double counting.")
+        return Issue(
+            ref,
+            "totals",
+            f"candidate votes {lines_sum} exceed reported total {reported_total}",
+            suggested_action="Check for duplicated rows or fusion-ticket double counting.",
+        )
     if reported_total and (reported_total - lines_sum) / reported_total > tolerance:
-        return Issue(ref, "totals", f"candidate votes {lines_sum} are below reported total {reported_total} by "
-                     f"more than {tolerance:.1%}", severity="warning",
-                     suggested_action="Usually blank/over/under votes or unlisted candidates; confirm with publisher.")
+        return Issue(
+            ref,
+            "totals",
+            f"candidate votes {lines_sum} are below reported total {reported_total} by " f"more than {tolerance:.1%}",
+            severity="warning",
+            suggested_action="Usually blank/over/under votes or unlisted candidates; confirm with publisher.",
+        )
     return None
 
 

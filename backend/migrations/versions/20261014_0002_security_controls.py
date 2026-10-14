@@ -3,6 +3,7 @@
 Revision ID: 0002
 Revises: 0001
 """
+
 from alembic import op
 
 revision = "0002"
@@ -12,15 +13,21 @@ depends_on = None
 
 TENANT_TABLES_NULLABLE = ("polls", "documents")  # NULL tenant = platform-wide shared data
 TENANT_TABLES_STRICT = (
-    "survey_datasets", "survey_responses", "assistant_queries", "reports",
-    "report_versions", "usage_events", "exports",
+    "survey_datasets",
+    "survey_responses",
+    "assistant_queries",
+    "reports",
+    "report_versions",
+    "usage_events",
+    "exports",
 )
 TENANT_EXPR = "NULLIF(current_setting('app.tenant_id', true), '')::uuid"
 APP_ROLES = ("election_app", "election_worker")
 
 
 def _if_role(role: str, sql: str) -> str:
-    return f"DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{role}') THEN {sql}; END IF; END $$;"
+    # role/sql are module constants, never user input
+    return f"DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{role}') THEN {sql}; END IF; END $$;"  # noqa: S608
 
 
 def upgrade() -> None:
@@ -29,15 +36,23 @@ def upgrade() -> None:
         op.execute(f"ALTER TABLE {t} ENABLE ROW LEVEL SECURITY")
         op.execute(f"ALTER TABLE {t} FORCE ROW LEVEL SECURITY")
     for t in TENANT_TABLES_NULLABLE:
-        op.execute(f"CREATE POLICY tenant_read ON {t} FOR SELECT USING (tenant_id IS NULL OR tenant_id = {TENANT_EXPR})")
+        op.execute(
+            f"CREATE POLICY tenant_read ON {t} FOR SELECT USING (tenant_id IS NULL OR tenant_id = {TENANT_EXPR})"
+        )
         op.execute(f"CREATE POLICY tenant_insert ON {t} FOR INSERT WITH CHECK (tenant_id = {TENANT_EXPR})")
-        op.execute(f"CREATE POLICY tenant_update ON {t} FOR UPDATE USING (tenant_id = {TENANT_EXPR}) WITH CHECK (tenant_id = {TENANT_EXPR})")
+        op.execute(
+            f"CREATE POLICY tenant_update ON {t} FOR UPDATE USING (tenant_id = {TENANT_EXPR}) WITH CHECK (tenant_id = {TENANT_EXPR})"
+        )
         op.execute(f"CREATE POLICY tenant_delete ON {t} FOR DELETE USING (tenant_id = {TENANT_EXPR})")
     for t in TENANT_TABLES_STRICT:
-        op.execute(f"CREATE POLICY tenant_all ON {t} USING (tenant_id = {TENANT_EXPR}) WITH CHECK (tenant_id = {TENANT_EXPR})")
+        op.execute(
+            f"CREATE POLICY tenant_all ON {t} USING (tenant_id = {TENANT_EXPR}) WITH CHECK (tenant_id = {TENANT_EXPR})"
+        )
     # Audit: tenants read their own events; inserts may carry their tenant or none (platform events).
     op.execute(f"CREATE POLICY audit_read ON audit_events FOR SELECT USING (tenant_id = {TENANT_EXPR})")
-    op.execute(f"CREATE POLICY audit_insert ON audit_events FOR INSERT WITH CHECK (tenant_id IS NULL OR tenant_id = {TENANT_EXPR})")
+    op.execute(
+        f"CREATE POLICY audit_insert ON audit_events FOR INSERT WITH CHECK (tenant_id IS NULL OR tenant_id = {TENANT_EXPR})"
+    )
 
     # --- Append-only audit trail ----------------------------------------------
     op.execute("""
@@ -52,7 +67,9 @@ def upgrade() -> None:
     END $$;
     """)
     for t in ("audit_events", "result_snapshots", "result_lines", "raw_files"):
-        op.execute(f"CREATE TRIGGER {t}_append_only BEFORE UPDATE OR DELETE ON {t} FOR EACH ROW EXECUTE FUNCTION forbid_mutation()")
+        op.execute(
+            f"CREATE TRIGGER {t}_append_only BEFORE UPDATE OR DELETE ON {t} FOR EACH ROW EXECUTE FUNCTION forbid_mutation()"
+        )
 
     # Published report versions are immutable; corrections create a new version.
     op.execute("""
@@ -68,15 +85,21 @@ def upgrade() -> None:
       RETURN COALESCE(NEW, OLD);
     END $$;
     """)
-    op.execute("CREATE TRIGGER report_versions_immutable BEFORE UPDATE OR DELETE ON report_versions "
-               "FOR EACH ROW EXECUTE FUNCTION protect_published_report_version()")
+    op.execute(
+        "CREATE TRIGGER report_versions_immutable BEFORE UPDATE OR DELETE ON report_versions "
+        "FOR EACH ROW EXECUTE FUNCTION protect_published_report_version()"
+    )
 
     # --- Grants -----------------------------------------------------------------
     for role in APP_ROLES:
         op.execute(_if_role(role, f"GRANT USAGE ON SCHEMA public TO {role}"))
         op.execute(_if_role(role, f"GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO {role}"))
         op.execute(_if_role(role, f"GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO {role}"))
-        op.execute(_if_role(role, f"REVOKE UPDATE, DELETE ON audit_events, result_snapshots, result_lines, raw_files FROM {role}"))
+        op.execute(
+            _if_role(
+                role, f"REVOKE UPDATE, DELETE ON audit_events, result_snapshots, result_lines, raw_files FROM {role}"
+            )
+        )
         op.execute(_if_role(role, f"REVOKE INSERT, UPDATE, DELETE ON alembic_version FROM {role}"))
 
     # --- Optional PostGIS spatial index ----------------------------------------

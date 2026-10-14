@@ -30,8 +30,12 @@ def ingest_upload(db: Session, payload: dict) -> dict:
     from .storage import get_store  # noqa: PLC0415
 
     content = get_store().get(payload["storage_key"])
-    f = FetchedFile(url=f"upload://{payload.get('filename') or 'file'}", content=content,
-                    content_type="application/octet-stream", filename=payload.get("filename"))
+    f = FetchedFile(
+        url=f"upload://{payload.get('filename') or 'file'}",
+        content=content,
+        content_type="application/octet-stream",
+        filename=payload.get("filename"),
+    )
     run = run_ingestion(db, payload["source_key"], payload.get("params"), [f], triggered_by=payload.get("by", "upload"))
     if run.status in ("succeeded", "partial"):
         issues.classify_documents(db)
@@ -45,10 +49,15 @@ def forecast_run(db: Session, payload: dict) -> dict:
 
     from .services.forecasting import service as fc  # noqa: PLC0415
 
-    run = fc.run_forecast(db, country=payload["country"], office_key=payload["office"],
-                          cycle_year=int(payload["cycle"]),
-                          data_cutoff=date.fromisoformat(payload["data_cutoff"]) if payload.get("data_cutoff") else None,
-                          created_by=payload.get("by", "queue"), scenario=payload.get("scenario"))
+    run = fc.run_forecast(
+        db,
+        country=payload["country"],
+        office_key=payload["office"],
+        cycle_year=int(payload["cycle"]),
+        data_cutoff=date.fromisoformat(payload["data_cutoff"]) if payload.get("data_cutoff") else None,
+        created_by=payload.get("by", "queue"),
+        scenario=payload.get("scenario"),
+    )
     db.commit()
     return {"forecast_run_id": str(run.id), "status": run.status}
 
@@ -72,8 +81,11 @@ def schedule_due(db: Session) -> dict:
     """Enqueue one job per active automated source per hour (idempotency key = source+hour)."""
     hour = datetime.now(UTC).strftime("%Y%m%d%H")
     queued = []
-    for s in db.scalars(select(Source).where(Source.status == "active", Source.access_method.in_(["api", "bulk_download",
-                                                                                                    "licensed_feed"]))):
+    for s in db.scalars(
+        select(Source).where(
+            Source.status == "active", Source.access_method.in_(["api", "bulk_download", "licensed_feed"])
+        )
+    ):
         if enqueue(db, "ingest", {"source_key": s.key, "by": "scheduler"}, idempotency_key=f"ingest:{s.key}:{hour}"):
             queued.append(s.key)
     enqueue(db, "freshness_check", {}, idempotency_key=f"freshness:{hour}")

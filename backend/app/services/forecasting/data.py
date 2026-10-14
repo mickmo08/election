@@ -70,10 +70,16 @@ class CycleInputs:
     used: dict = field(default_factory=dict)  # audit of what was read (for leakage tests)
 
 
-def _final_margin(db: Session, contest_id: uuid.UUID, a: uuid.UUID, b: uuid.UUID, cutoff: date) -> tuple[float | None, int, int]:
-    snap = db.scalar(select(ResultSnapshot).where(ResultSnapshot.contest_id == contest_id,
-                                                  ResultSnapshot.status.in_(FINAL_STATUSES))
-                     .options(selectinload(ResultSnapshot.lines)).order_by(ResultSnapshot.retrieved_at.desc()).limit(1))
+def _final_margin(
+    db: Session, contest_id: uuid.UUID, a: uuid.UUID, b: uuid.UUID, cutoff: date
+) -> tuple[float | None, int, int]:
+    snap = db.scalar(
+        select(ResultSnapshot)
+        .where(ResultSnapshot.contest_id == contest_id, ResultSnapshot.status.in_(FINAL_STATUSES))
+        .options(selectinload(ResultSnapshot.lines))
+        .order_by(ResultSnapshot.retrieved_at.desc())
+        .limit(1)
+    )
     if snap is None:
         return None, 0, 0
     party_of = {cy.id: cy.party_id for cy in db.scalars(select(Candidacy).where(Candidacy.contest_id == contest_id))}
@@ -105,13 +111,23 @@ def _prior_district(db: Session, d: District) -> list[tuple[District, str, float
     return out
 
 
-def env_from_polls(db: Session, country: str, a: Party, b: Party, cutoff: date, window: int = 60,
-                   half_life: float = 14.0) -> tuple[float | None, int, list[str]]:
+def env_from_polls(
+    db: Session, country: str, a: Party, b: Party, cutoff: date, window: int = 60, half_life: float = 14.0
+) -> tuple[float | None, int, list[str]]:
     last_field_end = cutoff - timedelta(days=1)
-    polls = list(db.scalars(select(Poll).where(
-        Poll.country_code == country, Poll.question_scope == "generic_ballot", Poll.tenant_id.is_(None),
-        Poll.field_end <= last_field_end, Poll.field_end > cutoff - timedelta(days=window))
-        .options(selectinload(Poll.questions).selectinload(PollQuestion.results))))
+    polls = list(
+        db.scalars(
+            select(Poll)
+            .where(
+                Poll.country_code == country,
+                Poll.question_scope == "generic_ballot",
+                Poll.tenant_id.is_(None),
+                Poll.field_end <= last_field_end,
+                Poll.field_end > cutoff - timedelta(days=window),
+            )
+            .options(selectinload(Poll.questions).selectinload(PollQuestion.results))
+        )
+    )
     kept, _ = select_non_overlapping(polls)
     num = wsum = 0.0
     used = []
@@ -128,8 +144,9 @@ def env_from_polls(db: Session, country: str, a: Party, b: Party, cutoff: date, 
     return (num / wsum if wsum else None), len(used), used
 
 
-def cycle_inputs(db: Session, *, country: str, office_key: str, year: int, cutoff: date,
-                 outcome_cutoff: date | None = None) -> CycleInputs:
+def cycle_inputs(
+    db: Session, *, country: str, office_key: str, year: int, cutoff: date, outcome_cutoff: date | None = None
+) -> CycleInputs:
     """Inputs as knowable at `cutoff`; outcomes revealed only for elections before `outcome_cutoff`
     (used when assembling *training* rows for a later target cycle)."""
     a_key, b_key = MAJOR_PARTIES[country]
@@ -138,9 +155,19 @@ def cycle_inputs(db: Session, *, country: str, office_key: str, year: int, cutof
     office = db.scalar(select(Office).where(Office.country_code == country, Office.key == office_key))
     synthetic_sources = {s.id for s in db.scalars(select(Source).where(Source.is_synthetic.is_(True)))}
     used: dict[str, list] = defaultdict(list)
-    contests = db.execute(select(Contest, Election).join(Election).join(ElectionCycle).where(
-        ElectionCycle.country_code == country, ElectionCycle.key == str(year), Contest.office_id == office.id,
-        Election.kind == "general", Contest.district_id.is_not(None), Contest.seats == 1)).all()
+    contests = db.execute(
+        select(Contest, Election)
+        .join(Election)
+        .join(ElectionCycle)
+        .where(
+            ElectionCycle.country_code == country,
+            ElectionCycle.key == str(year),
+            Contest.office_id == office.id,
+            Election.kind == "general",
+            Contest.district_id.is_not(None),
+            Contest.seats == 1,
+        )
+    ).all()
     rows: list[ContestRow] = []
     edate = None
     prev_year_votes = [0, 0]
@@ -154,15 +181,31 @@ def cycle_inputs(db: Session, *, country: str, office_key: str, year: int, cutof
             elif cy.incumbent and cy.party_id == b.id:
                 inc = -1
         d = db.get(District, c.district_id)
-        row = ContestRow(c.id, year, e.election_date, d.id, d.code, None, inc,
-                         any(cy.party_id == a.id for cy in cands), any(cy.party_id == b.id for cy in cands),
-                         synthetic=c.source_id in synthetic_sources)
+        row = ContestRow(
+            c.id,
+            year,
+            e.election_date,
+            d.id,
+            d.code,
+            None,
+            inc,
+            any(cy.party_id == a.id for cy in cands),
+            any(cy.party_id == b.id for cy in cands),
+            synthetic=c.source_id in synthetic_sources,
+        )
         # Prior result: most recent general election strictly before the cutoff in a comparable district.
         best = None
         for pd, basis, overlap in _prior_district(db, d):
-            for pc, pe in db.execute(select(Contest, Election).join(Election).where(
-                    Contest.district_id == pd.id, Election.kind == "general", Election.election_date < cutoff,
-                    Election.election_date < e.election_date)).all():
+            for pc, pe in db.execute(
+                select(Contest, Election)
+                .join(Election)
+                .where(
+                    Contest.district_id == pd.id,
+                    Election.kind == "general",
+                    Election.election_date < cutoff,
+                    Election.election_date < e.election_date,
+                )
+            ).all():
                 if best is None or pe.election_date > best[1].election_date:
                     best = (pc, pe, basis, overlap)
         if best is not None:

@@ -36,8 +36,11 @@ def purge_expired(db: Session) -> dict:
         for model in (AssistantQuery, Export):
             res = db.execute(delete(model).where(model.tenant_id == t.id, model.created_at < cutoff))
             counts[f"{t.slug}:{model.__tablename__}"] = res.rowcount  # type: ignore[attr-defined]
-        res = db.execute(delete(UsageEvent).where(UsageEvent.tenant_id == t.id,
-                                                  UsageEvent.created_at < datetime.now(UTC) - timedelta(days=800)))
+        res = db.execute(
+            delete(UsageEvent).where(
+                UsageEvent.tenant_id == t.id, UsageEvent.created_at < datetime.now(UTC) - timedelta(days=800)
+            )
+        )
         counts[f"{t.slug}:usage_events"] = res.rowcount  # type: ignore[attr-defined]
     return counts
 

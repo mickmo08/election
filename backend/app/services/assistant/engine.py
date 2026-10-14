@@ -94,6 +94,7 @@ class Session_:
 
 # ------------------------------------------------------------------ offline planner/composer
 
+
 def offline_plan(question: str, s: Session_) -> None:
     q = question.lower()
     country = _country(question)
@@ -110,12 +111,21 @@ def offline_plan(question: str, s: Session_) -> None:
         elif contest_id:
             s.execute("contest_results", {"contest_id": contest_id})
         else:
-            s.results.append(ToolResult("contest_results", {"district": code, "cycle": year}, {"found": False},
-                                        warnings=[f"No contest for {code}{' in ' + year if year else ''} is loaded "
-                                                  "from a registered source."]))
+            s.results.append(
+                ToolResult(
+                    "contest_results",
+                    {"district": code, "cycle": year},
+                    {"found": False},
+                    warnings=[
+                        f"No contest for {code}{' in ' + year if year else ''} is loaded " "from a registered source."
+                    ],
+                )
+            )
     if any(w in q for w in ("poll", "generic ballot", "average", "survey")):
-        s.execute("polling_average", {"country": country, "scope": "generic_ballot",
-                                      "as_of": datetime.now(UTC).date().isoformat()})
+        s.execute(
+            "polling_average",
+            {"country": country, "scope": "generic_ballot", "as_of": datetime.now(UTC).date().isoformat()},
+        )
     if any(w in q for w in ("forecast", "chance", "probability", "odds", "majority", "seats")):
         office = "xs_assembly" if country == "XS" else ("us_senate" if "senate" in q else "us_house")
         s.execute("forecast_status", {"country": country, "office": office, "cycle": year or "2026"})
@@ -139,11 +149,15 @@ def offline_compose(s: Session_) -> str:
         if r.name == "contest_results" and d.get("found") and d.get("has_results", True) and ev:
             lines = d["lines"]
             leader = lines[0]
-            parts.append(f"{d['contest']}: the {d['status']} count shows {leader['label']} with "
-                         f"{_fmt(leader['votes'])} votes ({_fmt(leader['share'])}%) [{ev}].")
+            parts.append(
+                f"{d['contest']}: the {d['status']} count shows {leader['label']} with "
+                f"{_fmt(leader['votes'])} votes ({_fmt(leader['share'])}%) [{ev}]."
+            )
             if len(lines) > 1:
-                parts.append(f"{lines[1]['label']} has {_fmt(lines[1]['votes'])} votes ({_fmt(lines[1]['share'])}%), "
-                             f"a margin of {_fmt(d['values']['margin_pts'])} points [{ev}].")
+                parts.append(
+                    f"{lines[1]['label']} has {_fmt(lines[1]['votes'])} votes ({_fmt(lines[1]['share'])}%), "
+                    f"a margin of {_fmt(d['values']['margin_pts'])} points [{ev}]."
+                )
             if "reporting_pct" in d["values"]:
                 parts.append(f"The source reports {_fmt(d['values']['reporting_pct'])}% reporting [{ev}].")
             if "turnout_pct" in d["values"]:
@@ -155,22 +169,29 @@ def offline_compose(s: Session_) -> str:
         elif r.name == "polling_average" and d.get("available") and ev:
             ests = sorted(d["estimates"].items(), key=lambda kv: -kv[1]["mean"])
             txt = "; ".join(f"{k} {_fmt(v['mean'])}%" for k, v in ests)
-            parts.append(f"Polling average (published polls, not a margin of error) from {d['n_polls']} polls: "
-                         f"{txt} [{ev}].")
+            parts.append(
+                f"Polling average (published polls, not a margin of error) from {d['n_polls']} polls: " f"{txt} [{ev}]."
+            )
         elif r.name == "forecast_status" and d.get("available") and ev:
             v = d["values"]
-            parts.append(f"The published model estimate puts party A's median at {v['seats_a_median']} seats "
-                         f"(80% interval {v['seats_a_p10']}–{v['seats_a_p90']}) [{ev}]. This is a model estimate, "
-                         "not a result.")
+            parts.append(
+                f"The published model estimate puts party A's median at {v['seats_a_median']} seats "
+                f"(80% interval {v['seats_a_p10']}–{v['seats_a_p90']}) [{ev}]. This is a model estimate, "
+                "not a result."
+            )
         elif r.name == "topic_trends" and ev:
             top = d.get("top_topics") or {}
             if top:
                 txt = "; ".join(f"{k} in {_fmt(v)}%" for k, v in top.items())
-                parts.append(f"In covered sources, the most frequent topics were: {txt} of documents [{ev}]. "
-                             "This measures coverage frequency, not public opinion.")
+                parts.append(
+                    f"In covered sources, the most frequent topics were: {txt} of documents [{ev}]. "
+                    "This measures coverage frequency, not public opinion."
+                )
         elif r.name == "source_status" and ev:
-            parts.append(f"{r.evidence[0]['values']['sources_unavailable']} of {r.evidence[0]['values']['sources_total']}"
-                         f" registered sources are not currently active [{ev}].")
+            parts.append(
+                f"{r.evidence[0]['values']['sources_unavailable']} of {r.evidence[0]['values']['sources_total']}"
+                f" registered sources are not currently active [{ev}]."
+            )
             for row in d["sources"]:
                 if row["status"] != "active":
                     parts.append(f"{row['name']}: {row['status']}.")
@@ -181,19 +202,31 @@ def offline_compose(s: Session_) -> str:
     if not parts and s.warnings:
         return "No evidence is available to answer this: " + " ".join(s.warnings)
     if not parts:
-        return ("I could not find evidence in the platform's registered sources to answer this. Try naming a "
-                "country, cycle, district code (e.g. NM-03) or topic.")
+        return (
+            "I could not find evidence in the platform's registered sources to answer this. Try naming a "
+            "country, cycle, district code (e.g. NM-03) or topic."
+        )
     return " ".join(parts)
 
 
 # ------------------------------------------------------------------ entry point
 
+
 def answer(db: Session, *, tenant_id: uuid.UUID, user_id: uuid.UUID, question: str) -> AssistantQuery:
     started = time.monotonic()
     settings = get_settings()
     decision = policy.check(question)
-    rec = AssistantQuery(tenant_id=tenant_id, user_id=user_id, question=question, provider="none", model="none",
-                         prompt_version=PROMPT_VERSION, status="refused")
+    rec = AssistantQuery(
+        tenant_id=tenant_id,
+        user_id=user_id,
+        question=question,
+        provider="none",
+        model="none",
+        prompt_version=PROMPT_VERSION,
+        status="refused",
+        input_tokens=0,
+        output_tokens=0,
+    )
     if not decision.allowed:
         rec.answer = decision.message or ""
         rec.grounding = {"policy_rule": decision.rule}
@@ -210,8 +243,9 @@ def answer(db: Session, *, tenant_id: uuid.UUID, user_id: uuid.UUID, question: s
         if name == "offline":
             break
         try:
-            res = build(name).run(SYSTEM_PROMPT, question, Toolbox.SPECS, sess.execute,
-                                  settings.assistant_max_tool_calls)
+            res = build(name).run(
+                SYSTEM_PROMPT, question, Toolbox.SPECS, sess.execute, settings.assistant_max_tool_calls
+            )
         except ProviderError as exc:
             log(logger, logging.WARNING, "provider failed", provider=name, error=str(exc))
             fallback = True
@@ -251,19 +285,40 @@ def answer(db: Session, *, tenant_id: uuid.UUID, user_id: uuid.UUID, question: s
     db.add(rec)
     db.flush()
     ASSISTANT_QUERIES.labels(rec.provider, rec.status).inc()
-    log(logger, logging.INFO, "assistant answered", query_id=str(rec.id), status=rec.status, provider=rec.provider,
-        tools=len(sess.results), grounded=check["passed"], latency_ms=rec.latency_ms)
+    log(
+        logger,
+        logging.INFO,
+        "assistant answered",
+        query_id=str(rec.id),
+        status=rec.status,
+        provider=rec.provider,
+        tools=len(sess.results),
+        grounded=check["passed"],
+        latency_ms=rec.latency_ms,
+    )
     return rec
 
 
 def to_view(rec: AssistantQuery) -> dict:
-    return {"id": str(rec.id), "question": rec.question, "answer": rec.answer, "status": rec.status,
-            "citations": rec.citations, "warnings": rec.evidence_warnings, "grounding": rec.grounding,
-            "tool_calls": rec.tool_calls, "provider": rec.provider, "model": rec.model,
-            "prompt_version": rec.prompt_version, "fallback_used": rec.fallback_used, "latency_ms": rec.latency_ms,
-            "created_at": rec.created_at, "ai_generated": True,
-            "disclaimer": "AI-assisted answer composed from platform tools. Numbers come from backend calculations; "
-                          "verify against the cited sources before publication."}
+    return {
+        "id": str(rec.id),
+        "question": rec.question,
+        "answer": rec.answer,
+        "status": rec.status,
+        "citations": rec.citations,
+        "warnings": rec.evidence_warnings,
+        "grounding": rec.grounding,
+        "tool_calls": rec.tool_calls,
+        "provider": rec.provider,
+        "model": rec.model,
+        "prompt_version": rec.prompt_version,
+        "fallback_used": rec.fallback_used,
+        "latency_ms": rec.latency_ms,
+        "created_at": rec.created_at,
+        "ai_generated": True,
+        "disclaimer": "AI-assisted answer composed from platform tools. Numbers come from backend calculations; "
+        "verify against the cited sources before publication.",
+    }
 
 
 __all__ = ["answer", "to_view", "json"]

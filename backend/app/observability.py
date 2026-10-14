@@ -20,7 +20,9 @@ tenant_var: contextvars.ContextVar[str | None] = contextvars.ContextVar("tenant_
 
 HTTP_REQUESTS = Counter("http_requests_total", "HTTP requests", ["method", "route", "status"])
 HTTP_LATENCY = Histogram(
-    "http_request_duration_seconds", "HTTP latency", ["method", "route"],
+    "http_request_duration_seconds",
+    "HTTP latency",
+    ["method", "route"],
     buckets=(0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10),
 )
 JOBS_PROCESSED = Counter("jobs_processed_total", "Jobs processed", ["kind", "outcome"])
@@ -88,6 +90,13 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
             route_path = getattr(route, "path", "unmatched")
             HTTP_REQUESTS.labels(request.method, route_path, str(status)).inc()
             HTTP_LATENCY.labels(request.method, route_path).observe(elapsed)
-            log(access_logger, logging.INFO, "request", method=request.method, route=route_path,
-                status=status, duration_ms=round(elapsed * 1000, 2))
+            log(
+                access_logger,
+                logging.INFO,
+                "request",
+                method=request.method,
+                route=route_path,
+                status=status,
+                duration_ms=round(elapsed * 1000, 2),
+            )
             request_id_var.reset(token)

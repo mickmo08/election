@@ -201,6 +201,7 @@ class SurveyResponse(Base):
 
 # --------------------------------------------------------------------------- issues
 
+
 class ModelVersion(Base):
     __tablename__ = "model_versions"
     __table_args__ = (UniqueConstraint("kind", "version"),)
@@ -302,6 +303,7 @@ class ForecastRun(Base):
 
 
 # --------------------------------------------------------------------------- assistant
+
 
 class AssistantQuery(Base):
     __tablename__ = "assistant_queries"
