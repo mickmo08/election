@@ -102,6 +102,10 @@ def upgrade() -> None:
         )
         op.execute(_if_role(role, f"REVOKE INSERT, UPDATE, DELETE ON alembic_version FROM {role}"))
 
+    op.execute(_if_role("election_backup", "GRANT USAGE ON SCHEMA public TO election_backup"))
+    op.execute(_if_role("election_backup", "GRANT SELECT ON ALL TABLES IN SCHEMA public TO election_backup"))
+    op.execute(_if_role("election_backup", "GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO election_backup"))
+
     # --- Optional PostGIS spatial index ----------------------------------------
     op.execute("""
     DO $$ BEGIN

@@ -12,7 +12,7 @@ services:
   bootstrap:
     image: postgis/postgis:16-3.4
     depends_on: { db: { condition: service_healthy } }
-    entrypoint: ["psql", "postgresql://election:election@db/election", "-v", "app_pw=election_app", "-v", "worker_pw=election_worker", "-f", "/bootstrap_roles.sql"]
+    entrypoint: ["psql", "postgresql://election:election@db/election", "-v", "app_pw=election_app", "-v", "worker_pw=election_worker", "-v", "backup_pw=election_backup", "-f", "/bootstrap_roles.sql"]
     volumes: ["./ops/db/bootstrap_roles.sql:/bootstrap_roles.sql:ro"]
   migrate:
     build: ./backend

@@ -1,0 +1,453 @@
+{
+  "run_id": "b8d27d27-99b4-49c2-bd02-c73739c73363",
+  "status": "blocked",
+  "data_cutoff": "2026-10-14T00:00:00+00:00",
+  "uses_synthetic_data": true,
+  "gates": [
+    {
+      "gate": "backtest_cycles",
+      "passed": true,
+      "detail": "4 held-out cycles (need \u2265 3)"
+    },
+    {
+      "gate": "beats_persistence_baseline",
+      "passed": true,
+      "detail": "Brier skill vs persistence = 0.170"
+    },
+    {
+      "gate": "competitive_with_uniform_swing",
+      "passed": false,
+      "detail": "Brier skill vs uniform-swing baseline = -0.025; a model that does not match the simpler baseline is not published"
+    },
+    {
+      "gate": "calibration",
+      "passed": true,
+      "detail": "ECE = 0.0697"
+    },
+    {
+      "gate": "interval_coverage",
+      "passed": true,
+      "detail": "80% interval coverage = 0.800 (target 0.7\u20130.92)"
+    },
+    {
+      "gate": "seat_interval_coverage",
+      "passed": true,
+      "detail": "actual seats inside the 80% seat interval in 3/4 held-out cycles"
+    },
+    {
+      "gate": "prior_result_coverage",
+      "passed": true,
+      "detail": "40/40 contests have a boundary-compatible prior result"
+    },
+    {
+      "gate": "polling_inputs",
+      "passed": true,
+      "detail": "5 eligible national polls before cutoff (need \u2265 3)"
+    },
+    {
+      "gate": "real_data",
+      "passed": true,
+      "detail": "SYNTHETIC data \u2014 demo only"
+    }
+  ],
+  "backtest": {
+    "method": "Expanding-window, time-respecting backtest; cutoff = election day \u2212 14 days",
+    "cycles": [
+      {
+        "cycle": 2018,
+        "cutoff": "2018-11-18",
+        "train_cycles": [
+          2012,
+          2014,
+          2016
+        ],
+        "n_contests": 40,
+        "polls_used": 6,
+        "scores": {
+          "model": {
+            "brier": 0.0593589960855415,
+            "log_loss": 0.19401193440693604,
+            "mae_margin": 0.029660406412083052,
+            "coverage_80": 0.85,
+            "n": 40
+          },
+          "persistence": {
+            "brier": 0.08371236885348957,
+            "log_loss": 0.2515971429781648,
+            "mae_margin": 0.05339441227114965,
+            "coverage_80": 0.775,
+            "n": 40
+          },
+          "uniform_swing": {
+            "brier": 0.06289876978246364,
+            "log_loss": 0.20860744835963202,
+            "mae_margin": 0.03400986806960902,
+            "coverage_80": 0.875,
+            "n": 40
+          }
+        },
+        "calibration_ece": 0.1011,
+        "seats_a_predicted_median": 13,
+        "seats_a_p10_p90": [
+          10,
+          16
+        ],
+        "seats_a_actual": 14
+      },
+      {
+        "cycle": 2020,
+        "cutoff": "2020-11-22",
+        "train_cycles": [
+          2012,
+          2014,
+          2016,
+          2018
+        ],
+        "n_contests": 40,
+        "polls_used": 8,
+        "scores": {
+          "model": {
+            "brier": 0.08962125485821563,
+            "log_loss": 0.25484499815174766,
+            "mae_margin": 0.047455175814808626,
+            "coverage_80": 0.7,
+            "n": 40
+          },
+          "persistence": {
+            "brier": 0.1225684944968336,
+            "log_loss": 0.3505758106062055,
+            "mae_margin": 0.05160559168534645,
+            "coverage_80": 0.75,
+            "n": 40
+          },
+          "uniform_swing": {
+            "brier": 0.08337160714791585,
+            "log_loss": 0.24626986041518376,
+            "mae_margin": 0.046022683548829504,
+            "coverage_80": 0.75,
+            "n": 40
+          }
+        },
+        "calibration_ece": 0.1001,
+        "seats_a_predicted_median": 17,
+        "seats_a_p10_p90": [
+          15,
+          20
+        ],
+        "seats_a_actual": 20
+      },
+      {
+        "cycle": 2022,
+        "cutoff": "2022-11-20",
+        "train_cycles": [
+          2012,
+          2014,
+          2016,
+          2018,
+          2020
+        ],
+        "n_contests": 40,
+        "polls_used": 7,
+        "scores": {
+          "model": {
+            "brier": 0.07423633262649519,
+            "log_loss": 0.24199205884005454,
+            "mae_margin": 0.040369777207843086,
+            "coverage_80": 0.85,
+            "n": 40
+          },
+          "persistence": {
+            "brier": 0.10611014565662853,
+            "log_loss": 0.34610312075013133,
+            "mae_margin": 0.06328202986218553,
+            "coverage_80": 0.55,
+            "n": 40
+          },
+          "uniform_swing": {
+            "brier": 0.06875447173156395,
+            "log_loss": 0.21890181679248144,
+            "mae_margin": 0.042655907879410995,
+            "coverage_80": 0.85,
+            "n": 40
+          }
+        },
+        "calibration_ece": 0.1049,
+        "seats_a_predicted_median": 22,
+        "seats_a_p10_p90": [
+          20,
+          25
+        ],
+        "seats_a_actual": 25
+      },
+      {
+        "cycle": 2024,
+        "cutoff": "2024-11-17",
+        "train_cycles": [
+          2012,
+          2014,
+          2016,
+          2018,
+          2020,
+          2022
+        ],
+        "n_contests": 40,
+        "polls_used": 8,
+        "scores": {
+          "model": {
+            "brier": 0.09387930011155944,
+            "log_loss": 0.28035113740152673,
+            "mae_margin": 0.034459663422234735,
+            "coverage_80": 0.8,
+            "n": 40
+          },
+          "persistence": {
+            "brier": 0.06955721600371301,
+            "log_loss": 0.2107475602419529,
+            "mae_margin": 0.038843639693715785,
+            "coverage_80": 0.9,
+            "n": 40
+          },
+          "uniform_swing": {
+            "brier": 0.09426318039527465,
+            "log_loss": 0.26912353283954316,
+            "mae_margin": 0.034439227270535486,
+            "coverage_80": 0.9,
+            "n": 40
+          }
+        },
+        "calibration_ece": 0.1034,
+        "seats_a_predicted_median": 23,
+        "seats_a_p10_p90": [
+          20,
+          25
+        ],
+        "seats_a_actual": 27
+      }
+    ],
+    "pooled": {
+      "model": {
+        "brier": 0.07927397092045294,
+        "log_loss": 0.24280003220006624,
+        "mae_margin": 0.03798625571424238,
+        "coverage_80": 0.8,
+        "n": 160
+      },
+      "persistence": {
+        "brier": 0.09548705625266617,
+        "log_loss": 0.2897559086441136,
+        "mae_margin": 0.05178141837809935,
+        "coverage_80": 0.74375,
+        "n": 160
+      },
+      "uniform_swing": {
+        "brier": 0.07732200726430452,
+        "log_loss": 0.23572566460171007,
+        "mae_margin": 0.03928192169209625,
+        "coverage_80": 0.84375,
+        "n": 160
+      }
+    },
+    "calibration": {
+      "bins": [
+        {
+          "bin": "0.0-0.1",
+          "n": 58,
+          "mean_predicted": 0.022,
+          "observed_rate": 0.069
+        },
+        {
+          "bin": "0.1-0.2",
+          "n": 9,
+          "mean_predicted": 0.159,
+          "observed_rate": 0.333
+        },
+        {
+          "bin": "0.2-0.3",
+          "n": 6,
+          "mean_predicted": 0.256,
+          "observed_rate": 0.333
+        },
+        {
+          "bin": "0.3-0.4",
+          "n": 7,
+          "mean_predicted": 0.353,
+          "observed_rate": 0.286
+        },
+        {
+          "bin": "0.4-0.5",
+          "n": 8,
+          "mean_predicted": 0.438,
+          "observed_rate": 0.625
+        },
+        {
+          "bin": "0.5-0.6",
+          "n": 6,
+          "mean_predicted": 0.556,
+          "observed_rate": 0.833
+        },
+        {
+          "bin": "0.6-0.7",
+          "n": 4,
+          "mean_predicted": 0.631,
+          "observed_rate": 0.75
+        },
+        {
+          "bin": "0.7-0.8",
+          "n": 1,
+          "mean_predicted": 0.771,
+          "observed_rate": 1.0
+        },
+        {
+          "bin": "0.8-0.9",
+          "n": 9,
+          "mean_predicted": 0.873,
+          "observed_rate": 1.0
+        },
+        {
+          "bin": "0.9-1.0",
+          "n": 52,
+          "mean_predicted": 0.983,
+          "observed_rate": 1.0
+        }
+      ],
+      "ece": 0.0697
+    },
+    "brier_skill_vs_persistence": 0.16979354028164984,
+    "brier_skill_vs_uniform_swing": -0.025244606616020127
+  },
+  "inputs": {
+    "contests": 40,
+    "env_poll": -0.015881352790161164,
+    "polls_used": 5,
+    "env_prev_actual": 0.022596798320835512,
+    "train_cycles": [
+      2012,
+      2014,
+      2016,
+      2018,
+      2020,
+      2022,
+      2024
+    ],
+    "contests_without_prior": 0
+  },
+  "aggregate": {
+    "n_simulations": 10000,
+    "contests_modelled": 40,
+    "seats_total_office": 40,
+    "majority_threshold": 21,
+    "seats_a": {
+      "mean": 22.16,
+      "median": 22,
+      "p10": 19,
+      "p90": 25
+    },
+    "p_a_majority": 0.7709,
+    "majority_note": null,
+    "distribution": [
+      {
+        "seats": 9,
+        "share": 0.0001
+      },
+      {
+        "seats": 10,
+        "share": 0.0001
+      },
+      {
+        "seats": 12,
+        "share": 0.0003
+      },
+      {
+        "seats": 13,
+        "share": 0.0004
+      },
+      {
+        "seats": 14,
+        "share": 0.0015
+      },
+      {
+        "seats": 15,
+        "share": 0.0035
+      },
+      {
+        "seats": 16,
+        "share": 0.0084
+      },
+      {
+        "seats": 17,
+        "share": 0.0158
+      },
+      {
+        "seats": 18,
+        "share": 0.0359
+      },
+      {
+        "seats": 19,
+        "share": 0.0633
+      },
+      {
+        "seats": 20,
+        "share": 0.0998
+      },
+      {
+        "seats": 21,
+        "share": 0.136
+      },
+      {
+        "seats": 22,
+        "share": 0.1665
+      },
+      {
+        "seats": 23,
+        "share": 0.1758
+      },
+      {
+        "seats": 24,
+        "share": 0.1395
+      },
+      {
+        "seats": 25,
+        "share": 0.0914
+      },
+      {
+        "seats": 26,
+        "share": 0.0422
+      },
+      {
+        "seats": 27,
+        "share": 0.0151
+      },
+      {
+        "seats": 28,
+        "share": 0.0038
+      },
+      {
+        "seats": 29,
+        "share": 0.0002
+      },
+      {
+        "seats": 30,
+        "share": 0.0002
+      },
+      {
+        "seats": 31,
+        "share": 0.0001
+      },
+      {
+        "seats": 32,
+        "share": 0.0001
+      }
+    ],
+    "dependence": "Shared national error ~ Student-t(df=7, scale=0.015); district errors independent.",
+    "party_a": "xs_blue",
+    "party_b": "xs_orange",
+    "coefficients": {
+      "intercept": -0.0007,
+      "prev_margin": 0.8761,
+      "incumbency": 0.0156,
+      "swing": 0.9092
+    },
+    "sigma_national": 0.015,
+    "sigma_district": 0.0459
+  }
+}

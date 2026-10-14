@@ -238,13 +238,7 @@ def poll_average(
 ) -> dict:
     as_of = as_of or datetime.now(UTC).date()
     avg = polling.average(db, country=country, scope=scope, as_of=as_of, window_days=window_days)
-    trend = []
-    for k in range(0, window_days, 7):
-        d = as_of - timedelta(days=k)
-        a = polling.average(db, country=country, scope=scope, as_of=d, window_days=window_days)
-        if a["available"]:
-            trend.append({"as_of": d, **{c: v["mean"] for c, v in a["estimates"].items()}})
-    return {**avg, "trend": list(reversed(trend))}
+    return {**avg, "trend": polling.trend(db, country=country, scope=scope, as_of=as_of, window_days=window_days)}
 
 
 # ------------------------------------------------------------------ issues

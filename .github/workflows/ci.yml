@@ -28,7 +28,7 @@ jobs:
       - name: Bootstrap database roles
         env: { PGPASSWORD: election }
         run: |
-          psql -h localhost -U election -v app_pw=election_app -v worker_pw=election_worker -f ../ops/db/bootstrap_roles.sql election
+          psql -h localhost -U election -v app_pw=election_app -v worker_pw=election_worker -v backup_pw=election_backup -f ../ops/db/bootstrap_roles.sql election
           psql -h localhost -U election -c "CREATE DATABASE election_test OWNER election" election
       - name: Migration round trip (upgrade -> downgrade -> upgrade)
         env: { ELECTION_MIGRATION_DATABASE_URL: "postgresql+psycopg://election:election@localhost/election" }
@@ -75,7 +75,7 @@ jobs:
         env: { PGPASSWORD: election }
         run: |
           uv venv -p 3.13 && uv pip install -e .
-          psql -h localhost -U election -v app_pw=election_app -v worker_pw=election_worker -f ../ops/db/bootstrap_roles.sql election
+          psql -h localhost -U election -v app_pw=election_app -v worker_pw=election_worker -v backup_pw=election_backup -f ../ops/db/bootstrap_roles.sql election
           .venv/bin/alembic upgrade head && .venv/bin/python -m app.cli seed-demo
           nohup .venv/bin/uvicorn app.main:app --port 8000 > api.log 2>&1 &
       - name: Build and start frontend

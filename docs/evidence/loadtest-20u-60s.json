@@ -1,0 +1,64 @@
+{
+  "users": 20,
+  "duration_s": 60.4,
+  "requests": 3693,
+  "throughput_rps": 61.1,
+  "errors": 0,
+  "error_rate": 0.0,
+  "overall_ms": {
+    "p50": 47.9,
+    "p95": 941.3,
+    "p99": 1215.4
+  },
+  "by_endpoint": {
+    "assistant": {
+      "n": 196,
+      "errors": 0,
+      "p50_ms": 425.2,
+      "p95_ms": 1624.0,
+      "mean_ms": 553.6
+    },
+    "contest": {
+      "n": 769,
+      "errors": 0,
+      "p50_ms": 35.7,
+      "p95_ms": 1006.3,
+      "mean_ms": 346.9
+    },
+    "contests": {
+      "n": 1667,
+      "errors": 0,
+      "p50_ms": 48.9,
+      "p95_ms": 869.0,
+      "mean_ms": 303.0
+    },
+    "issues": {
+      "n": 178,
+      "errors": 0,
+      "p50_ms": 48.0,
+      "p95_ms": 851.2,
+      "mean_ms": 301.7
+    },
+    "map": {
+      "n": 183,
+      "errors": 0,
+      "p50_ms": 52.1,
+      "p95_ms": 811.9,
+      "mean_ms": 285.1
+    },
+    "overview": {
+      "n": 356,
+      "errors": 0,
+      "p50_ms": 52.5,
+      "p95_ms": 930.5,
+      "mean_ms": 312.2
+    },
+    "polls": {
+      "n": 344,
+      "errors": 0,
+      "p50_ms": 33.7,
+      "p95_ms": 800.9,
+      "mean_ms": 277.7
+    }
+  }
+}

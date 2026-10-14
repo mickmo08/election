@@ -18,7 +18,7 @@ from datetime import UTC, date, datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ...models import Contest, District, ForecastRun, Source
+from ...models import Contest, District, Election, ElectionCycle, ForecastRun, Source
 from .. import issues, polling, results
 from ..freshness import source_freshness
 
@@ -315,20 +315,24 @@ class Toolbox:
 
     # ------------------------------------------------------------------ helpers for planners
     def resolve_district_contest(self, country: str, code: str, cycle: str | None) -> tuple[str | None, str | None]:
+        """Find the general-election contest for a district code (and cycle), in one query."""
         q = (
-            select(Contest.id, District.id)
+            select(Contest.id, District.id, ElectionCycle.key)
             .join(District, District.id == Contest.district_id)
-            .where(District.code == code.upper())
+            .join(Election, Election.id == Contest.election_id)
+            .join(ElectionCycle, ElectionCycle.id == Election.cycle_id)
+            .where(
+                District.code == code.upper(), ElectionCycle.country_code == country.upper(), Election.kind == "general"
+            )
+            .order_by(ElectionCycle.year.desc())
         )
         rows = self.db.execute(q).all()
         if not rows:
             return None, None
         if cycle:
-            for cid, did in rows:
-                det = results.contest_detail(self.db, cid)
-                if det and det["election"]["cycle"] == str(cycle) and det["election"]["kind"] == "general":
-                    return str(cid), str(did)
-        return None, str(rows[-1][1])
+            match = next((r for r in rows if r[2] == str(cycle)), None)
+            return (str(match[0]), str(match[1])) if match else (None, str(rows[0][1]))
+        return None, str(rows[0][1])
 
 
 def sanitize_untrusted(text: str) -> tuple[str, bool]:

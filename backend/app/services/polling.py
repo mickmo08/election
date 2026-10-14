@@ -128,6 +128,17 @@ def select_non_overlapping(polls: list[Poll]) -> tuple[list[Poll], list[dict]]:
     return kept, excluded
 
 
+def _fetch(db: Session, country: str, scope: str, lo: date, hi: date, contest_id=None) -> list[Poll]:  # type: ignore[no-untyped-def]
+    q = (
+        select(Poll)
+        .where(Poll.country_code == country, Poll.question_scope == scope, Poll.field_end <= hi, Poll.field_end > lo)
+        .options(selectinload(Poll.pollster), selectinload(Poll.questions).selectinload(PollQuestion.results))
+    )
+    if contest_id:
+        q = q.where(Poll.contest_id == contest_id)
+    return list(db.scalars(q))
+
+
 def average(
     db: Session,
     *,
@@ -136,28 +147,25 @@ def average(
     as_of: date,
     window_days: int = 60,
     half_life_days: float = 14.0,
-    contest_id=None,
-) -> dict:  # type: ignore[no-untyped-def]
-    """Recency- and size-weighted average using only polls whose field period ended by `as_of`."""
-    q = (
-        select(Poll)
-        .where(
-            Poll.country_code == country,
-            Poll.question_scope == scope,
-            Poll.field_end <= as_of,
-            Poll.field_end > date.fromordinal(as_of.toordinal() - window_days),
-        )
-        .options(selectinload(Poll.pollster), selectinload(Poll.questions).selectinload(PollQuestion.results))
-    )
-    if contest_id:
-        q = q.where(Poll.contest_id == contest_id)
-    polls = list(db.scalars(q))
+    contest_id=None,  # type: ignore[no-untyped-def]
+    polls: list[Poll] | None = None,
+    synthetic_sources: set | None = None,
+) -> dict:
+    """Recency- and size-weighted average using only polls whose field period ended by `as_of`.
+
+    `polls` may be a superset fetched once by the caller (e.g. for a trend); it is filtered here.
+    """
+    lo = date.fromordinal(as_of.toordinal() - window_days)
+    if polls is None:
+        polls = _fetch(db, country, scope, lo, as_of, contest_id)
+    polls = [p for p in polls if lo < p.field_end <= as_of]
+    if synthetic_sources is None:
+        synthetic_sources = {s.id for s in db.scalars(select(Source).where(Source.is_synthetic.is_(True)))}
     kept, excluded = select_non_overlapping(polls)
     pop_pref = {"lv": 1.0, "rv": 0.85, "v": 1.0, "a": 0.6}
     sums: dict[str, float] = defaultdict(float)
     values: dict[str, list[tuple[float, float]]] = defaultdict(list)
     wsum = 0.0
-    synthetic_sources = {s.id for s in db.scalars(select(Source).where(Source.is_synthetic.is_(True)))}
     for p in kept:
         age = (as_of - p.field_end).days
         w = 0.5 ** (age / half_life_days) * math.sqrt(min(p.sample_size or 400, 3000)) * pop_pref[p.population]
@@ -196,3 +204,18 @@ def average(
         "(LV/V 1.0, RV 0.85, adults 0.6) × 0.5 for partisan sponsors. Spread is the weighted SD across "
         "polls — it is not a margin of error.",
     }
+
+
+def trend(db: Session, *, country: str, scope: str, as_of: date, window_days: int, step_days: int = 7) -> list[dict]:
+    """Averages recomputed every `step_days`, from a single poll fetch."""
+    points = [date.fromordinal(as_of.toordinal() - k) for k in range(0, window_days, step_days)]
+    polls = _fetch(db, country, scope, date.fromordinal(points[-1].toordinal() - window_days), as_of)
+    synth = {s.id for s in db.scalars(select(Source).where(Source.is_synthetic.is_(True)))}
+    out = []
+    for d in reversed(points):
+        a = average(
+            db, country=country, scope=scope, as_of=d, window_days=window_days, polls=polls, synthetic_sources=synth
+        )
+        if a["available"]:
+            out.append({"as_of": d, **{c: v["mean"] for c, v in a["estimates"].items()}})
+    return out
