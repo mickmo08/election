@@ -1,0 +1,11 @@
+# Each skip is a reviewed decision recorded in docs/security/iac-scan-exceptions.md.
+skip-check:
+  - CKV_AWS_150   # ALB deletion protection: enabled for production via var; staging is disposable
+  - CKV_AWS_157   # RDS Multi-AZ: enabled for production via var; staging single-AZ by cost decision
+  - CKV_AWS_394   # AZ pinning: two AZs selected by slice(); subnets fix placement at creation
+  - CKV2_AWS_62   # S3 event notifications: no consumer requires them
+  - CKV2_AWS_76   # Log4j AMR: AWSManagedRulesKnownBadInputsRuleSet (contains Log4j rules) is attached
+  - CKV2_AWS_57   # Secret rotation: third-party API keys rotate manually; DB role rotation lambda is a tracked follow-up (runbook: secret-rotation)
+  - CKV_AWS_144   # S3 cross-region replication: pending product/cost decision; RDS backups are replicated cross-region in production
+  - CKV_AWS_378   # HTTP to targets: TLS terminates at the ALB; targets are in private subnets (accepted risk)
+  - CKV_AWS_145   # Access-log bucket uses SSE-S3 because ALB log delivery does not support SSE-KMS

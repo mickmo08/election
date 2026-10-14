@@ -1,0 +1,14 @@
+environment          = "staging"
+region               = "us-east-1"
+domain_name          = "staging.election.example"
+acm_certificate_arn  = "REPLACE_WITH_ACM_CERT_ARN"
+ecr_registry         = "REPLACE_WITH_ACCOUNT.dkr.ecr.us-east-1.amazonaws.com"
+image_tag            = "REPLACE_WITH_GIT_SHA"
+oidc_issuer          = "REPLACE_WITH_IDP_ISSUER"
+oidc_audience        = "election-api"
+oidc_jwks_url        = "REPLACE_WITH_IDP_JWKS_URL"
+alarm_email          = "REPLACE_WITH_ONCALL_ADDRESS"
+db_instance_class    = "db.t4g.medium"
+api_desired_count    = 1
+worker_desired_count = 1
+web_desired_count    = 1

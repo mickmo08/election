@@ -26,6 +26,14 @@ class Settings(BaseSettings):
     # Schema owner: used only by migrations and ops tooling.
     migration_database_url: str = "postgresql+psycopg://election:election@localhost:5432/election"
 
+    # Deployed environments inject host + secrets separately (RDS-managed owner secret is JSON);
+    # URLs are composed from them when present (see _compose_db_urls).
+    db_host: str | None = None
+    db_name: str = "election"
+    db_app_password: str | None = None
+    db_worker_password: str | None = None
+    db_owner_secret: str | None = None
+
     # Raw source file storage (immutable, content addressed).
     storage_backend: Literal["local", "s3"] = "local"
     storage_local_path: str = "./var/raw"
@@ -67,6 +75,25 @@ class Settings(BaseSettings):
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
     log_level: str = "INFO"
     otel_exporter_endpoint: str | None = None
+
+    @model_validator(mode="after")
+    def _compose_db_urls(self) -> Settings:
+        if self.db_host:
+            import json  # noqa: PLC0415
+            from urllib.parse import quote  # noqa: PLC0415
+
+            def url(user: str, pw: str) -> str:
+                creds = f"{quote(user)}:{quote(pw, safe='')}"
+                return f"postgresql+psycopg://{creds}@{self.db_host}:5432/{self.db_name}?sslmode=require"
+
+            if self.db_app_password:
+                self.database_url = url("election_app", self.db_app_password)
+            if self.db_worker_password:
+                self.worker_database_url = url("election_worker", self.db_worker_password)
+            if self.db_owner_secret:
+                owner = json.loads(self.db_owner_secret)
+                self.migration_database_url = url(owner["username"], owner["password"])
+        return self
 
     @model_validator(mode="after")
     def _production_guards(self) -> Settings:

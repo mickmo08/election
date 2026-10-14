@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..models import QuarantineItem, Source
-from ..observability import QUARANTINE_OPEN, SOURCE_STALE, SOURCE_STALENESS
+from ..observability import QUARANTINE_OPEN, SOURCE_STALE, SOURCE_STALENESS, log
+
+logger = logging.getLogger("freshness")
 
 
 def source_freshness(source: Source, now: datetime | None = None) -> dict:
@@ -40,7 +43,10 @@ def evaluate(db: Session) -> dict:
         f = source_freshness(s)
         if f["age_hours"] is not None:
             SOURCE_STALENESS.labels(s.key).set(f["age_hours"])
-        SOURCE_STALE.labels(s.key).set(1 if f["state"] in ("stale", "never_loaded") else 0)
+        breached = f["state"] in ("stale", "never_loaded")
+        SOURCE_STALE.labels(s.key).set(1 if breached else 0)
+        if breached:
+            log(logger, logging.WARNING, "freshness breach", source=s.key, state=f["state"], age_hours=f["age_hours"])
         out.append(f)
     open_items = db.scalar(select(func.count()).select_from(QuarantineItem).where(QuarantineItem.status == "open"))
     QUARANTINE_OPEN.set(open_items or 0)
