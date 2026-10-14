@@ -1,0 +1,71 @@
+........................................................................ [ 78%]
+....................                                                     [100%]
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.13.16-final-0 _______________
+
+Name                                   Stmts   Miss  Cover
+----------------------------------------------------------
+app/__init__.py                            0      0   100%
+app/api/__init__.py                        0      0   100%
+app/api/admin.py                         198    108    45%
+app/api/data.py                          131     63    52%
+app/api/deps.py                           26      2    92%
+app/api/research.py                      165     17    90%
+app/api/system.py                         48     16    67%
+app/audit.py                               9      0   100%
+app/auth.py                              115      8    93%
+app/cli.py                               113     61    46%
+app/config.py                             77     12    84%
+app/countries/__init__.py                  0      0   100%
+app/countries/base.py                    103      3    97%
+app/countries/registry.py                 10      2    80%
+app/countries/synthetic.py                34      1    97%
+app/countries/us.py                       50      1    98%
+app/db.py                                 40      3    92%
+app/entitlements.py                       27      4    85%
+app/ingestion/__init__.py                  0      0   100%
+app/ingestion/adapters/__init__.py         1      0   100%
+app/ingestion/adapters/census.py          71      8    89%
+app/ingestion/adapters/documents.py       68     17    75%
+app/ingestion/adapters/fec.py            116     19    84%
+app/ingestion/adapters/generic.py        209     94    55%
+app/ingestion/adapters/medsl.py          112     17    85%
+app/ingestion/adapters/synthetic.py      243      2    99%
+app/ingestion/framework.py               138     11    92%
+app/ingestion/loaders.py                 140      8    94%
+app/ingestion/results_writer.py           49      7    86%
+app/ingestion/validation.py               72     24    67%
+app/jobs.py                               53     53     0%
+app/main.py                               37      4    89%
+app/models/__init__.py                     6      0   100%
+app/models/base.py                        16      1    94%
+app/models/geo.py                        176      0   100%
+app/models/provenance.py                 113      0   100%
+app/models/research.py                   268      0   100%
+app/models/tenancy.py                     80      0   100%
+app/observability.py                      65      2    97%
+app/queue.py                              72      5    93%
+app/ratelimit.py                          30      1    97%
+app/services/__init__.py                   0      0   100%
+app/services/assistant/__init__.py         0      0   100%
+app/services/assistant/engine.py         195     24    88%
+app/services/assistant/grounding.py       41      4    90%
+app/services/assistant/policy.py          17      1    94%
+app/services/assistant/providers.py      122     53    57%
+app/services/assistant/tools.py          166     59    64%
+app/services/forecasting/__init__.py       0      0   100%
+app/services/forecasting/data.py         123      3    98%
+app/services/forecasting/model.py        150     10    93%
+app/services/forecasting/service.py      158     10    94%
+app/services/freshness.py                 35     16    54%
+app/services/issues.py                   145     32    78%
+app/services/polling.py                   94     22    77%
+app/services/reference.py                 65      4    94%
+app/services/reports.py                  111     17    85%
+app/services/results.py                  130     37    72%
+app/services/retention.py                 35     35     0%
+app/services/surveys.py                   84     13    85%
+app/storage.py                            56     19    66%
+----------------------------------------------------------
+TOTAL                                   5008    933    81%
+exit=0

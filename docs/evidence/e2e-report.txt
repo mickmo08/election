@@ -1,0 +1,7 @@
+  ✓  1 e2e/workflows.spec.ts:17:5 › unconnected U.S. sources are shown as unavailable, never substituted (2.8s)
+  ✓  2 e2e/workflows.spec.ts:25:5 › explorer -> contest detail shows status, history, provenance and no automatic call (5.0s)
+  ✓  3 e2e/workflows.spec.ts:41:5 › assistant answers with citations and refuses individual profiling (3.4s)
+  ✓  4 e2e/workflows.spec.ts:56:5 › report editorial workflow: draft, review by another user, publish, synthetic blocked (3.8s)
+  ✓  5 e2e/workflows.spec.ts:81:5 › viewer sees restricted states; forecast gates are visible (1.4s)
+  ✓  6 e2e/workflows.spec.ts:92:5 › source registry documents remediation for every unavailable source (2.3s)
+  6 passed (20.8s)

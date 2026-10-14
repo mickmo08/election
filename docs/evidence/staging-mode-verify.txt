@@ -1,0 +1,18 @@
+PASS readyz (200)
+PASS OIDC RS256 token accepted (200)
+PASS role from membership (admin)
+PASS dev token endpoint disabled (404)
+PASS HS256 token refused (401)
+PASS viewer cannot read audit (403)
+PASS HSTS header (1)
+PASS synthetic data labelled in staging (True)
+PASS forecast job processed by worker (succeeded)
+passed=9 failed=0
+
+# Backup role check on the staging-mode cluster (non-superuser owner, FORCE RLS):
+pg_dump as schema owner -> ERROR: query would be affected by row-level security policy for table "assistant_queries"
+pg_dump as election_backup (BYPASSRLS, read-only) -> succeeded (764,745 bytes)
+
+Environment: local PostgreSQL 16 cluster on :5433 with generated non-default credentials, non-superuser owner;
+API with ELECTION_ENVIRONMENT=staging; mock OIDC issuer (ops/staging-local/mock_idp.py) issuing RS256 tokens
+validated via JWKS. This is a local staging-mode run, NOT a cloud staging deployment.
